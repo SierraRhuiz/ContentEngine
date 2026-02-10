@@ -1,0 +1,55 @@
+# Railway Configuration
+# https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm run start"
+healthcheckPath = "/api/feed/scheduler"
+healthcheckTimeout = 30
+numReplicas = 1
+sleepApplication = false
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# ===========================================
+# CRON JOBS SETUP (Manual Configuration Required)
+# ===========================================
+# 
+# After deploying to Railway, you need to set up cron jobs manually:
+#
+# 1. Go to Railway Dashboard > Your Project > Settings > Cron
+# 
+# 2. Create two cron jobs:
+#
+#    FEED REFRESH (every 30 minutes):
+#    - Name: feed-refresh
+#    - Schedule: */30 * * * *
+#    - Command: npm run cron:feed
+#
+#    BLOG REFRESH (daily at midnight):
+#    - Name: blog-refresh  
+#    - Schedule: 0 0 * * *
+#    - Command: npm run cron:blog
+#
+# ===========================================
+# ENVIRONMENT VARIABLES REQUIRED
+# ===========================================
+#
+# Make sure these are set in Railway dashboard:
+#
+# Supabase:
+# - NEXT_PUBLIC_SUPABASE_URL
+# - NEXT_PUBLIC_SUPABASE_ANON_KEY
+# - SUPABASE_SERVICE_ROLE_KEY
+#
+# External APIs:
+# - APIFY_TOKEN
+# - HYPERBROWSER_API_KEY (optional, for blog scraping)
+# - KIMI_API_KEY (for AI content generation)
+#
+# Application:
+# - NEXT_PUBLIC_APP_URL (your Railway deployment URL)
+# - NODE_ENV=production
+#
