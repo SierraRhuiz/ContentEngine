@@ -167,6 +167,15 @@ export default function ScoutPage() {
               </>
             )}
           </Button>
+
+          <Button 
+            size="sm"
+            className="bg-cyan-500 hover:bg-cyan-600 text-white"
+            onClick={() => setActiveTab('config')}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add
+          </Button>
         </div>
       </div>
 
@@ -264,14 +273,6 @@ export default function ScoutPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => addToMonitoring(source.id)}
-                          disabled={monitoredSources.includes(source.id)}
-                        >
-                          {monitoredSources.includes(source.id) ? 'Added' : 'Add'}
-                        </Button>
                         <Button size="sm">
                           <Play className="w-4 h-4 mr-2" />
                           Generate Pack
