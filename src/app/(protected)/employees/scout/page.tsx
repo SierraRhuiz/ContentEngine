@@ -215,7 +215,9 @@ export default function ScoutPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch tweets');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || 'Failed to fetch tweets');
       }
 
       const data = await response.json();
