@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Radio, Brain, Layers, Sparkles, Target } from "lucide-react";
 
 const contentLinks = [
   { href: "/", label: "Dashboard", icon: "🎯" },
@@ -24,28 +25,31 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-border/30 bg-sidebar">
+    <div className="flex h-screen w-64 flex-col border-r border-cyan-500/20 bg-[#0a0f1a]/95 backdrop-blur-xl">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-sm">
-          CE
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/20 border border-cyan-500/30">
+          <Radio className="w-5 h-5 text-cyan-400" />
         </div>
-        <span className="text-lg font-semibold tracking-tight text-foreground">Content Engine</span>
+        <div>
+          <span className="text-lg font-semibold tracking-tight text-white">Content</span>
+          <span className="text-lg font-semibold tracking-tight text-cyan-400">Engine</span>
+        </div>
       </div>
 
       {/* Create Post Button */}
       <div className="px-4 pb-4">
-        <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
-          + Create a post
+        <Button className="w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+          <span className="mr-2">+</span> Create a post
         </Button>
       </div>
 
-      <div className="mx-4 h-px bg-border/30" />
+      <div className="mx-4 h-px bg-cyan-500/10" />
 
       <ScrollArea className="flex-1">
         <div className="px-3 py-5">
           {/* Content Section */}
-          <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+          <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-widest text-cyan-500/60">
             Content
           </p>
           <nav className="space-y-1">
@@ -56,8 +60,8 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   pathname === link.href
-                    ? "bg-sidebar-accent text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"
+                    : "text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-200"
                 )}
               >
                 <span className="text-base">{link.icon}</span>
@@ -66,10 +70,10 @@ export function Sidebar() {
             ))}
           </nav>
 
-          <div className="my-5 mx-1 h-px bg-border/30" />
+          <div className="my-5 mx-1 h-px bg-cyan-500/10" />
 
           {/* Configuration Section */}
-          <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+          <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-widest text-cyan-500/60">
             Configuration
           </p>
           <nav className="space-y-1">
@@ -80,8 +84,8 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   pathname === link.href
-                    ? "bg-sidebar-accent text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"
+                    : "text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-200"
                 )}
               >
                 <span className="text-base">{link.icon}</span>
@@ -92,7 +96,7 @@ export function Sidebar() {
         </div>
       </ScrollArea>
 
-      <div className="mx-4 h-px bg-border/30" />
+      <div className="mx-4 h-px bg-cyan-500/10" />
 
       {/* Settings */}
       <div className="px-3 py-4">
@@ -101,8 +105,8 @@ export function Sidebar() {
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
             pathname === "/settings"
-              ? "bg-sidebar-accent text-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"
+              : "text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-200"
           )}
         >
           <span className="text-base">⚙️</span>
