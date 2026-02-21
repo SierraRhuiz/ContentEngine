@@ -235,16 +235,23 @@ export default function ScoutPage() {
                 />
               </div>
               
-              <select
-                value={scoreFilter}
-                onChange={(e) => setScoreFilter(e.target.value)}
-                className="bg-card border border-border/50 text-foreground text-sm rounded px-3"
-              >
-                <option value="all">All Scores</option>
-                <option value="9">Score 9+</option>
-                <option value="8">Score 8+</option>
-                <option value="7">Score 7+</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={scoreFilter}
+                  onChange={(e) => setScoreFilter(e.target.value)}
+                  className="appearance-none bg-slate-900/80 border border-cyan-500/30 text-cyan-100 text-sm rounded-lg px-4 py-2.5 pr-10 min-w-[140px] focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 cursor-pointer hover:border-cyan-500/50 transition-colors"
+                >
+                  <option value="all" className="bg-slate-900 text-cyan-100">All Scores</option>
+                  <option value="9" className="bg-slate-900 text-cyan-100">Score 9+</option>
+                  <option value="8" className="bg-slate-900 text-cyan-100">Score 8+</option>
+                  <option value="7" className="bg-slate-900 text-cyan-100">Score 7+</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Sources List */}
@@ -353,25 +360,39 @@ export default function ScoutPage() {
               <CardContent className="space-y-4">
                 {/* Add New Target */}
                 <div className="flex gap-2">
-                  <select
-                    value={newTarget.type}
-                    onChange={(e) => setNewTarget({ ...newTarget, type: e.target.value })}
-                    className="bg-card border border-border/50 text-foreground text-sm rounded px-3"
-                  >
-                    <option value="account">Account</option>
-                    <option value="hashtag">Hashtag</option>
-                    <option value="keyword">Keyword</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={newTarget.type}
+                      onChange={(e) => setNewTarget({ ...newTarget, type: e.target.value })}
+                      className="appearance-none bg-slate-900/80 border border-cyan-500/30 text-cyan-100 text-sm rounded-lg px-4 py-2.5 pr-10 min-w-[120px] focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 cursor-pointer hover:border-cyan-500/50 transition-colors"
+                    >
+                      <option value="account" className="bg-slate-900 text-cyan-100">Account</option>
+                      <option value="hashtag" className="bg-slate-900 text-cyan-100">Hashtag</option>
+                      <option value="keyword" className="bg-slate-900 text-cyan-100">Keyword</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
                   
-                  <select
-                    value={newTarget.platform}
-                    onChange={(e) => setNewTarget({ ...newTarget, platform: e.target.value })}
-                    className="bg-card border border-border/50 text-foreground text-sm rounded px-3"
-                  >
-                    <option value="twitter">Twitter/X</option>
-                    <option value="youtube">YouTube</option>
-                    <option value="all">All Platforms</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={newTarget.platform}
+                      onChange={(e) => setNewTarget({ ...newTarget, platform: e.target.value })}
+                      className="appearance-none bg-slate-900/80 border border-cyan-500/30 text-cyan-100 text-sm rounded-lg px-4 py-2.5 pr-10 min-w-[140px] focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 cursor-pointer hover:border-cyan-500/50 transition-colors"
+                    >
+                      <option value="twitter" className="bg-slate-900 text-cyan-100">Twitter/X</option>
+                      <option value="youtube" className="bg-slate-900 text-cyan-100">YouTube</option>
+                      <option value="all" className="bg-slate-900 text-cyan-100">All Platforms</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
                   
                   <Input
                     placeholder="@username, #hashtag, or keyword"
