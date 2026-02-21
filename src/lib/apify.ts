@@ -23,9 +23,9 @@ if (!APIFY_API_KEY) {
   console.warn('[Apify] Warning: No API key found. Set APIFY_TOKEN in environment variables.');
 }
 
-// Actor IDs (using ~ instead of / for API compatibility)
+// Actor IDs (using ~ instead of / for API compatibility) - Cost-optimized for internal use
 const ACTORS = {
-  twitter_tweet: 'apidojo~twitter-scraper',  // Changed from kaitoeasyapi - no mock data
+  twitter_tweet: 'kaitoeasyapi~twitter-x-data-tweet-scraper-pay-per-result-cheapest',  // $0.25/1000 tweets
   youtube_transcript: 'topaz_sharingan~youtube-transcript-scraper',
   linkedin_post: 'curious_coder~linkedin-post-search-scraper',
 };

@@ -293,9 +293,45 @@ export default function ScoutPage() {
 
       const data = await response.json();
       
-      if (data.tweets && data.tweets.length > 0) {
+      // Filter out mock data from KaitoEasyAPI
+      const filterMockData = (tweets: any[]) => {
+        return tweets.filter(tweet => {
+          // Mock data indicators:
+          // 1. Tweet IDs that are too short or follow mock patterns
+          // 2. Text that contains placeholder patterns
+          // 3. Views/likes that are suspiciously round numbers
+          
+          const isMockId = tweet.id && (
+            tweet.id.toString().length < 10 ||
+            tweet.id.toString().startsWith('mock_') ||
+            tweet.id.toString().startsWith('test_')
+          );
+          
+          const isMockText = tweet.text && (
+            tweet.text.includes('This is a sample tweet') ||
+            tweet.text.includes('Mock data') ||
+            tweet.text.includes('Test tweet') ||
+            tweet.text.includes('Lorem ipsum')
+          );
+          
+          const isMockEngagement = 
+            (tweet.views === 1000 || tweet.views === 5000 || tweet.views === 10000) &&
+            (tweet.likes === 100 || tweet.likes === 500 || tweet.likes === 1000);
+          
+          if (isMockId || isMockText || isMockEngagement) {
+            console.log('[Scout] Filtered mock tweet:', tweet.id);
+            return false;
+          }
+          
+          return true;
+        });
+      };
+      
+      const realTweets = data.tweets ? filterMockData(data.tweets) : [];
+      
+      if (realTweets.length > 0) {
         // Transform tweets to source format
-        const newSources = data.tweets.map((tweet: any, index: number) => ({
+        const newSources = realTweets.map((tweet: any, index: number) => ({
           id: Date.now() + index,
           platform: 'twitter',
           title: tweet.text?.substring(0, 80) + (tweet.text?.length > 80 ? '...' : ''),
