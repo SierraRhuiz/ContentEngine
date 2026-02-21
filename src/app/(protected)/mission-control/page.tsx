@@ -166,7 +166,7 @@ export default function MissionControlPage() {
                     <h3 className="font-semibold text-foreground text-base mb-2">{employee.name}</h3>
                     <p className="text-muted-foreground text-xs leading-relaxed mb-3">
                       {employee.description}
-003c/p>
+                    </p>
                     
                     <div className="bg-sidebar-accent rounded-md px-3 py-2 text-center">
                       <span className="text-sm font-medium text-foreground">{employee.metric}</span>
