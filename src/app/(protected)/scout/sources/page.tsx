@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ArrowLeft, 
   Twitter, 
@@ -14,8 +15,7 @@ import {
   Repeat, 
   MessageCircle,
   Eye,
-  TrendingUp,
-  Clock
+  Trash2
 } from 'lucide-react';
 
 interface Tweet {
@@ -42,6 +42,7 @@ export default function SourceDetailPage() {
   
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTweets, setSelectedTweets] = useState<number[]>([]);
   const [stats, setStats] = useState({
     total: 0,
     avgScore: 0,
@@ -50,17 +51,14 @@ export default function SourceDetailPage() {
   });
 
   useEffect(() => {
-    // Load tracked tweets from localStorage
     const saved = localStorage.getItem('scout-tracked-tweets');
     if (saved && author) {
       const allTweets: Tweet[] = JSON.parse(saved);
-      // Filter by author
       const authorTweets = allTweets.filter(t => 
         t.author?.toLowerCase().includes(author.toLowerCase())
       );
       setTweets(authorTweets);
       
-      // Calculate stats
       if (authorTweets.length > 0) {
         const totalViews = authorTweets.reduce((sum, t) => {
           const views = parseFloat(t.views?.replace(/[^0-9.]/g, '') || '0');
@@ -77,6 +75,57 @@ export default function SourceDetailPage() {
     }
     setLoading(false);
   }, [author]);
+
+  const toggleSelectAll = () => {
+    if (selectedTweets.length === tweets.length) {
+      setSelectedTweets([]);
+    } else {
+      setSelectedTweets(tweets.map(t => t.id));
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    if (selectedTweets.includes(id)) {
+      setSelectedTweets(selectedTweets.filter(tid => tid !== id));
+    } else {
+      setSelectedTweets([...selectedTweets, id]);
+    }
+  };
+
+  const deleteSelected = () => {
+    if (selectedTweets.length === 0) return;
+    
+    const confirmed = confirm(`Delete ${selectedTweets.length} tweet(s)?`);
+    if (!confirmed) return;
+    
+    const remainingTweets = tweets.filter(t => !selectedTweets.includes(t.id));
+    setTweets(remainingTweets);
+    
+    const saved = localStorage.getItem('scout-tracked-tweets');
+    if (saved) {
+      const allTweets: Tweet[] = JSON.parse(saved);
+      const updatedTweets = allTweets.filter(t => !selectedTweets.includes(t.id));
+      localStorage.setItem('scout-tracked-tweets', JSON.stringify(updatedTweets));
+    }
+    
+    setSelectedTweets([]);
+    
+    if (remainingTweets.length > 0) {
+      const totalViews = remainingTweets.reduce((sum, t) => {
+        const views = parseFloat(t.views?.replace(/[^0-9.]/g, '') || '0');
+        return sum + views;
+      }, 0);
+      
+      setStats({
+        total: remainingTweets.length,
+        avgScore: Math.round(remainingTweets.reduce((sum, t) => sum + t.score, 0) / remainingTweets.length),
+        totalViews: Math.round(totalViews),
+        highPerformers: remainingTweets.filter(t => t.score >= 8).length
+      });
+    } else {
+      setStats({ total: 0, avgScore: 0, totalViews: 0, highPerformers: 0 });
+    }
+  };
 
   const getPlatformIcon = (platform: string) => {
     if (platform === 'youtube') return <Youtube className="w-5 h-5 text-red-500" />;
@@ -100,7 +149,6 @@ export default function SourceDetailPage() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-cyan-500/20 px-6 py-5">
         <div className="flex items-center gap-4">
           <Button 
@@ -124,7 +172,6 @@ export default function SourceDetailPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <Card className="bg-slate-900/60 border-cyan-500/20">
             <CardContent className="p-4">
@@ -155,7 +202,39 @@ export default function SourceDetailPage() {
           </Card>
         </div>
 
-        {/* Tweets List */}
+        {tweets.length > 0 && (
+          <div className="flex items-center justify-between mb-4 p-3 bg-slate-900/60 border border-cyan-500/20 rounded-lg">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={selectedTweets.length === tweets.length && tweets.length > 0}
+                onCheckedChange={toggleSelectAll}
+                className="border-cyan-500/50 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+              />
+              <span className="text-sm text-cyan-100">
+                {selectedTweets.length === tweets.length ? 'Deselect All' : 'Select All'}
+              </span>
+              
+              {selectedTweets.length > 0 && (
+                <span className="text-sm text-cyan-400">
+                  ({selectedTweets.length} selected)
+                </span>
+              )}
+            </div>
+            
+            {selectedTweets.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={deleteSelected}
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Selected
+              </Button>
+            )}
+          </div>
+        )}
+
         <div className="space-y-3">
           {tweets.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
@@ -165,22 +244,28 @@ export default function SourceDetailPage() {
             tweets.map((tweet) => (
               <Card 
                 key={tweet.id} 
-                className="bg-slate-900/60 border-cyan-500/20 hover:border-cyan-500/40 transition-colors"
+                className={`bg-slate-900/60 border-cyan-500/20 hover:border-cyan-500/40 transition-colors ${
+                  selectedTweets.includes(tweet.id) ? 'border-cyan-500/60 bg-cyan-500/10' : ''
+                }`}
               >
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      {getPlatformIcon(tweet.platform)}
-                      
-                      <div className="flex-1">
-                        <p className="text-white text-sm leading-relaxed">
-                          {tweet.text || tweet.title}
-                        </p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
-                          <span>{tweet.author}</span>
-                          <span>•</span>
-                          <span>{tweet.discoveredAt}</span>
-                        </div>
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={selectedTweets.includes(tweet.id)}
+                      onCheckedChange={() => toggleSelect(tweet.id)}
+                      className="mt-1 border-cyan-500/50 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                    />
+                    
+                    {getPlatformIcon(tweet.platform)}
+                    
+                    <div className="flex-1">
+                      <p className="text-white text-sm leading-relaxed">
+                        {tweet.text || tweet.title}
+                      </p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                        <span>{tweet.author}</span>
+                        <span>•</span>
+                        <span>{tweet.discoveredAt}</span>
                       </div>
                     </div>
 

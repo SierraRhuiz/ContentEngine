@@ -300,6 +300,7 @@ export default function ScoutPage() {
           // 1. Tweet IDs that are too short or follow mock patterns
           // 2. Text that contains placeholder patterns
           // 3. Views/likes that are suspiciously round numbers
+          // 4. API warning/explanation messages
           
           const isMockId = tweet.id && (
             tweet.id.toString().length < 10 ||
@@ -311,15 +312,25 @@ export default function ScoutPage() {
             tweet.text.includes('This is a sample tweet') ||
             tweet.text.includes('Mock data') ||
             tweet.text.includes('Test tweet') ||
-            tweet.text.includes('Lorem ipsum')
+            tweet.text.includes('Lorem ipsum') ||
+            tweet.text.includes('KaitoEasyAPI') ||
+            tweet.text.includes('Our API pricing') ||
+            tweet.text.includes('minimum charge') ||
+            tweet.text.includes('infrastructure costs') ||
+            tweet.text.length > 500  // API warning messages are long
           );
           
           const isMockEngagement = 
             (tweet.views === 1000 || tweet.views === 5000 || tweet.views === 10000) &&
             (tweet.likes === 100 || tweet.likes === 500 || tweet.likes === 1000);
           
-          if (isMockId || isMockText || isMockEngagement) {
-            console.log('[Scout] Filtered mock tweet:', tweet.id);
+          // Check if it's the API's own explanation message
+          const isApiMessage = tweet.author === 'KaitoEasyAPI' || 
+                               tweet.text?.includes('apify.com') ||
+                               tweet.text?.includes('platform, we have a minimum charge');
+          
+          if (isMockId || isMockText || isMockEngagement || isApiMessage) {
+            console.log('[Scout] Filtered mock tweet:', tweet.id || 'no-id');
             return false;
           }
           
