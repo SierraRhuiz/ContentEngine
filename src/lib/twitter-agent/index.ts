@@ -42,45 +42,60 @@ export interface TwitterAgentResult {
 
 /**
  * Fetch tweet content from a URL
+ * Uses the existing /api/scrape endpoint
  */
 async function fetchTweetFromUrl(url: string): Promise<{ text: string; author: string; metrics: any; url?: string } | null> {
   try {
-    console.log('[TwitterAgent] Fetching tweet from:', url);
+    console.log('[TwitterAgent] Attempting to fetch tweet from:', url);
     
-    // Extract tweet ID from URL
-    const tweetIdMatch = url.match(/(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/);
-    if (!tweetIdMatch) {
-      console.log('[TwitterAgent] Not a tweet URL, treating as generic link');
+    // Extract username from URL for API call
+    const match = url.match(/(?:twitter\.com|x\.com)\/([^/]+)\/status\/(\d+)/);
+    if (!match) {
+      console.log('[TwitterAgent] Not a valid tweet URL');
       return null;
     }
     
-    const tweetId = tweetIdMatch[1];
-    console.log('[TwitterAgent] Tweet ID:', tweetId);
+    const username = match[1];
+    console.log('[TwitterAgent] Username:', username);
     
-    // Use Apify to fetch the specific tweet
-    const { getTwitterPosts } = await import('@/lib/apify');
-    const tweets = await getTwitterPosts({
-      from: tweetId,
-      maxItems: 1,
-      queryType: 'Latest',
+    // Call the existing scrape API
+    const response = await fetch('/api/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'twitter',
+        username: username,
+        options: { maxTweets: 10, includeReplies: false }
+      })
     });
     
-    if (tweets && tweets.length > 0) {
-      const tweet = tweets[0];
-      console.log('[TwitterAgent] Fetched tweet:', tweet.text?.substring(0, 50));
+    if (!response.ok) {
+      console.log('[TwitterAgent] Scrape API returned error:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    const tweets = data.tweets || [];
+    
+    // Find the specific tweet by URL
+    const tweet = tweets.find((t: any) => t.url === url || t.id === match[2]);
+    
+    if (tweet) {
+      console.log('[TwitterAgent] Found tweet:', tweet.text?.substring(0, 50));
       return {
         text: tweet.text || '',
-        author: tweet.author?.userName || 'unknown',
+        author: tweet.author || username,
         metrics: {
-          likes: tweet.likeCount || 0,
-          retweets: tweet.retweetCount || 0,
-          replies: tweet.replyCount || 0,
-          views: tweet.viewCount || 0,
+          likes: tweet.likes || 0,
+          retweets: tweet.retweets || 0,
+          replies: tweet.comments || 0,
+          views: tweet.views || 0,
         },
         url: tweet.url || url,
       };
     }
     
+    console.log('[TwitterAgent] Tweet not found in scraped data');
     return null;
   } catch (error) {
     console.error('[TwitterAgent] Error fetching tweet:', error);
@@ -106,13 +121,15 @@ export async function processTwitterContent(
   let contentToAnalyze = cleanInput;
   let tweetData = null;
   
-  // If it's a tweet URL, fetch the actual tweet content
+  // If it's a tweet URL, try to fetch the actual tweet content
   if (url && (url.includes('twitter.com') || url.includes('x.com'))) {
-    console.log('[TwitterAgent] Detected tweet URL, fetching...');
+    console.log('[TwitterAgent] Detected tweet URL, attempting fetch...');
     tweetData = await fetchTweetFromUrl(url);
     if (tweetData) {
       contentToAnalyze = tweetData.text;
-      console.log('[TwitterAgent] Analyzing fetched tweet:', contentToAnalyze.substring(0, 50));
+      console.log('[TwitterAgent] Using fetched tweet:', contentToAnalyze.substring(0, 50));
+    } else {
+      console.log('[TwitterAgent] Fetch failed, will analyze as generic link');
     }
   }
   
