@@ -104,23 +104,44 @@ export default function AgentPage() {
   const [twitterAnalysis, setTwitterAnalysis] = useState<any>(null);
 
   const formatTwitterAnalysis = (data: any): string => {
-    const { input, analysis } = data;
+    const { analysis } = data;
+    const isTweetAnalysis = analysis.source_type === 'tweet_analysis';
+    
+    if (isTweetAnalysis) {
+      // Format for fetched tweet with metrics
+      return `📊 TWEET ANALYSIS
+
+**Tweet:** "${analysis.source_title}"
+
+**Performance Metrics:**
+${analysis.key_insights?.map((i: string) => `• ${i}`).join('\n')}
+
+**Why It Works:**
+${analysis.content_gaps?.map((g: string) => `• ${g}`).join('\n')}
+
+**Structure Breakdown:**
+${analysis.main_points?.map((p: string) => `• ${p}`).join('\n')}
+
+**Hashtags:** ${analysis.trending_hashtags?.join(' ')}`;
+    }
+    
+    // Format for regular content analysis
     const preview = analysis.source_title.length > 80 
       ? analysis.source_title.substring(0, 80) + '...' 
       : analysis.source_title;
     
-    return `📊 ANALYSIS
+    return `📊 CONTENT ANALYSIS
 
 **Content:** "${preview}"
-**Type:** ${input.input_type} | **Length:** ${analysis.key_insights?.[0]?.match(/\d+/)?.[0] || '?'} chars
+**Type:** ${analysis.source_type}
 
-**Performance:**
-${analysis.key_insights?.slice(1).map((i: string) => `• ${i}`).join('\n')}
+**Analysis:**
+${analysis.key_insights?.map((i: string) => `• ${i}`).join('\n')}
 
 **Structure:**
 ${analysis.main_points?.map((p: string) => `• ${p}`).join('\n')}
 
-**Fixes Needed:**
+**Improvements:**
 ${analysis.content_gaps?.map((g: string) => `• ${g}`).join('\n')}
 
 **Hashtags:** ${analysis.trending_hashtags?.join(' ')}`;

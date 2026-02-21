@@ -41,8 +41,56 @@ export interface TwitterAgentResult {
 }
 
 /**
+ * Fetch tweet content from a URL
+ */
+async function fetchTweetFromUrl(url: string): Promise<{ text: string; author: string; metrics: any; url?: string } | null> {
+  try {
+    console.log('[TwitterAgent] Fetching tweet from:', url);
+    
+    // Extract tweet ID from URL
+    const tweetIdMatch = url.match(/(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/);
+    if (!tweetIdMatch) {
+      console.log('[TwitterAgent] Not a tweet URL, treating as generic link');
+      return null;
+    }
+    
+    const tweetId = tweetIdMatch[1];
+    console.log('[TwitterAgent] Tweet ID:', tweetId);
+    
+    // Use Apify to fetch the specific tweet
+    const { getTwitterPosts } = await import('@/lib/apify');
+    const tweets = await getTwitterPosts({
+      from: tweetId,
+      maxItems: 1,
+      queryType: 'Latest',
+    });
+    
+    if (tweets && tweets.length > 0) {
+      const tweet = tweets[0];
+      console.log('[TwitterAgent] Fetched tweet:', tweet.text?.substring(0, 50));
+      return {
+        text: tweet.text || '',
+        author: tweet.author?.userName || 'unknown',
+        metrics: {
+          likes: tweet.likeCount || 0,
+          retweets: tweet.retweetCount || 0,
+          replies: tweet.replyCount || 0,
+          views: tweet.viewCount || 0,
+        },
+        url: tweet.url || url,
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('[TwitterAgent] Error fetching tweet:', error);
+    return null;
+  }
+}
+
+/**
  * Process input and analyze content for Twitter posting
- * Strips command prefixes and analyzes the actual content
+ * Fetches tweet content from URLs and analyzes why it works
  */
 export async function processTwitterContent(
   userInput: string,
@@ -54,15 +102,28 @@ export async function processTwitterContent(
   console.log('[TwitterAgent] Raw input:', userInput.substring(0, 50));
   console.log('[TwitterAgent] Clean input:', cleanInput.substring(0, 50));
   
-  const inputType = detectInputType(cleanInput);
-  const intent = detectIntent(cleanInput);
-  const audience = detectAudience(cleanInput);
   const url = extractUrl(cleanInput);
+  let contentToAnalyze = cleanInput;
+  let tweetData = null;
+  
+  // If it's a tweet URL, fetch the actual tweet content
+  if (url && (url.includes('twitter.com') || url.includes('x.com'))) {
+    console.log('[TwitterAgent] Detected tweet URL, fetching...');
+    tweetData = await fetchTweetFromUrl(url);
+    if (tweetData) {
+      contentToAnalyze = tweetData.text;
+      console.log('[TwitterAgent] Analyzing fetched tweet:', contentToAnalyze.substring(0, 50));
+    }
+  }
+  
+  const inputType = url ? 'link' : detectInputType(cleanInput);
+  const intent = detectIntent(contentToAnalyze);
+  const audience = detectAudience(contentToAnalyze);
   const topic = extractTopic(cleanInput, inputType);
   
   const request: ContentRequest = {
     input_type: inputType,
-    raw_input: cleanInput,  // Use the cleaned input
+    raw_input: contentToAnalyze,
     intent: intent,
     target_audience: audience,
     extracted_url: url,
@@ -70,8 +131,10 @@ export async function processTwitterContent(
     context: context,
   };
   
-  // Generate ACTUAL analysis based on the cleaned content
-  const analysis = analyzeActualContent(request);
+  // Generate analysis based on the actual content (fetched or provided)
+  const analysis = tweetData 
+    ? analyzeTweetPerformance(contentToAnalyze, tweetData)
+    : analyzeActualContent(request);
   
   return {
     input: request,
@@ -101,62 +164,52 @@ function stripCommandPrefix(input: string): string {
 }
 
 /**
- * Analyze actual content instead of returning templates
+ * Analyze a high-performing tweet with actual metrics
  */
-function analyzeActualContent(request: ContentRequest): ContentAnalysis {
-  // Use the raw input directly so we analyze what the user actually typed
-  const content = request.raw_input;
-  console.log('[TwitterAgent] Analyzing content:', content.substring(0, 100));
+function analyzeTweetPerformance(text: string, tweetData: any): ContentAnalysis {
+  const contentLower = text.toLowerCase();
   
-  const contentLower = content.toLowerCase();
+  console.log('[TwitterAgent] Analyzing tweet performance with metrics:', tweetData.metrics);
   
-  // Analyze content structure
-  const wordCount = content.split(/\s+/).length;
-  const hasNumbers = /\d+/.test(content);
-  const hasQuestion = content.includes('?');
-  const hasExclamation = content.includes('!');
-  const hasEmojis = /[\u{1F600}-\u{1F64F}]/u.test(content);
+  // Calculate engagement rate
+  const views = tweetData.metrics.views || 1;
+  const engagement = tweetData.metrics.likes + tweetData.metrics.retweets + tweetData.metrics.replies;
+  const engagementRate = ((engagement / views) * 100).toFixed(2);
   
-  console.log('[TwitterAgent] Word count:', wordCount, 'Has numbers:', hasNumbers, 'Has question:', hasQuestion);
-  
-  // Determine content category based on actual content
-  let category = 'general';
-  if (contentLower.includes('automation') || contentLower.includes('workflow') || contentLower.includes('openclaw')) category = 'automation';
-  else if (contentLower.includes('ai') || contentLower.includes('machine learning') || contentLower.includes('artificial intelligence')) category = 'ai';
-  else if (contentLower.includes('startup') || contentLower.includes('founder') || contentLower.includes('entrepreneur')) category = 'startup';
-  else if (contentLower.includes('marketing') || contentLower.includes('growth') || contentLower.includes('seo')) category = 'marketing';
-  else if (contentLower.includes('code') || contentLower.includes('developer') || contentLower.includes('programming')) category = 'tech';
-  
-  console.log('[TwitterAgent] Category:', category);
-  
-  // Extract the actual first sentence for hook analysis
-  const firstSentence = content.split(/[.!?]/)[0] || '';
+  // Analyze why it works
+  const firstSentence = text.split(/[.!?]/)[0] || '';
   const hookStrength = analyzeHook(firstSentence);
   
-  // Performance predictions based on actual content
-  const performance = predictPerformance(content, category);
+  // Determine content category
+  let category = 'general';
+  if (contentLower.includes('automation') || contentLower.includes('workflow')) category = 'automation';
+  else if (contentLower.includes('ai') || contentLower.includes('machine learning')) category = 'ai';
+  else if (contentLower.includes('startup') || contentLower.includes('founder')) category = 'startup';
+  else if (contentLower.includes('marketing') || contentLower.includes('growth')) category = 'marketing';
+  else if (contentLower.includes('code') || contentLower.includes('developer')) category = 'tech';
   
-  // Generate specific insights based on ACTUAL content
+  // Analyze virality factors
+  const viralityFactors = analyzeViralityFactors(text, tweetData.metrics);
+  
+  // Specific insights about why this tweet works
   const insights = [
-    `Content length: ${content.length} characters (${content.length > 280 ? 'Thread candidate' : 'Single tweet'})`,
-    `Hook analysis: ${hookStrength.strength} - ${hookStrength.reason}`,
-    `Predicted engagement: ${performance.engagement} - ${performance.reason}`,
+    `Engagement rate: ${engagementRate}% (${engagement.toLocaleString()} engagements / ${views.toLocaleString()} views)`,
+    `Hook strength: ${hookStrength.strength} - ${hookStrength.reason}`,
+    `Likes: ${tweetData.metrics.likes.toLocaleString()} | Retweets: ${tweetData.metrics.retweets.toLocaleString()} | Replies: ${tweetData.metrics.replies.toLocaleString()}`,
+    ...viralityFactors,
   ];
   
-  // Main points to cover based on what's actually in the content
+  // Content structure breakdown
   const mainPoints = [
-    `Current opening: "${firstSentence.substring(0, 50)}${firstSentence.length > 50 ? '...' : ''}"`,
-    `Word count: ${wordCount} words`,
-    hasNumbers ? '✓ Contains specific numbers/stats' : '⚠ No specific numbers - adding stats could help',
-    hasQuestion ? '✓ Includes question to drive engagement' : '⚠ No question - consider adding one',
+    `Opening: "${firstSentence.substring(0, 60)}${firstSentence.length > 60 ? '...' : ''}"`,
+    `Character count: ${text.length} / 280`,
+    text.length < 100 ? '✓ Short and punchy - easy to digest' : '⚠ Longer format - needs strong hook',
+    /\d+%|\d+x|\$\d+/.test(text) ? '✓ Uses specific numbers for credibility' : '⚠ No specific data/stats',
+    text.includes('?') ? '✓ Includes question to drive replies' : '⚠ No question - one-way communication',
   ];
   
-  // Content gaps specific to this content
-  const gaps: string[] = [];
-  if (!hasNumbers) gaps.push('Add specific numbers or statistics for credibility');
-  if (!hasQuestion) gaps.push('Include a question to increase replies');
-  if (content.length < 100) gaps.push('Content is short - could expand with more value');
-  if (!content.includes('@') && !content.includes('#')) gaps.push('Consider adding relevant mentions or hashtags');
+  // What makes it work
+  const gaps = identifySuccessFactors(text, tweetData.metrics);
   
   const hashtags: Record<string, string[]> = {
     'automation': ['#Automation', '#OpenClaw', '#Workflow'],
@@ -167,7 +220,138 @@ function analyzeActualContent(request: ContentRequest): ContentAnalysis {
     'general': ['#Tech', '#Business', '#Tips'],
   };
   
-  console.log('[TwitterAgent] Analysis complete');
+  return {
+    source_type: 'tweet_analysis',
+    source_url: tweetData.url,
+    source_title: text.slice(0, 60) + (text.length > 60 ? '...' : ''),
+    key_insights: insights,
+    key_quotes: extractQuotes(text),
+    statistics: [
+      `Views: ${views.toLocaleString()}`,
+      `Engagement Rate: ${engagementRate}%`,
+      `Like/View Ratio: ${((tweetData.metrics.likes / views) * 100).toFixed(2)}%`,
+    ],
+    main_points: mainPoints,
+    recommended_angle: 'analyzed_high_performer',
+    content_gaps: gaps,
+    trending_hashtags: hashtags[category]?.slice(0, 3) || hashtags['general'].slice(0, 3),
+    optimal_timing: 'Tuesday-Thursday, 9-11 AM EST (based on high engagement)',
+    related_accounts: [`@${tweetData.author}`],
+    conversation_context: `High-performing ${category} content`,
+  };
+}
+
+function analyzeViralityFactors(text: string, metrics: any): string[] {
+  const factors: string[] = [];
+  
+  // High like ratio
+  const likeRatio = metrics.likes / (metrics.views || 1);
+  if (likeRatio > 0.05) {
+    factors.push('✓ High like ratio - content resonates emotionally');
+  }
+  
+  // High retweet ratio (indicates shareability)
+  const rtRatio = metrics.retweets / (metrics.views || 1);
+  if (rtRatio > 0.01) {
+    factors.push('✓ Strong retweet rate - highly shareable content');
+  }
+  
+  // High reply ratio (indicates controversy/discussion)
+  const replyRatio = metrics.replies / (metrics.views || 1);
+  if (replyRatio > 0.005) {
+    factors.push('✓ High reply rate - sparks conversation/controversy');
+  }
+  
+  // Content patterns that work
+  if (text.includes('Here') && text.includes('why')) {
+    factors.push('✓ Uses "Here\'s why" format - promises value');
+  }
+  if (text.match(/\d+ (ways?|things?|reasons?|mistakes?)/)) {
+    factors.push('✓ Numbered list - scannable format');
+  }
+  if (text.match(/most people|everyone|nobody/)) {
+    factors.push('✓ Contrarian/opinionated angle - triggers engagement');
+  }
+  
+  return factors.slice(0, 3);
+}
+
+function identifySuccessFactors(text: string, metrics: any): string[] {
+  const factors: string[] = [];
+  
+  // Identify what made it successful
+  if (metrics.likes > metrics.retweets * 5) {
+    factors.push('Like-heavy: Content is relatable/agreeable but not highly shareable');
+  } else if (metrics.retweets > metrics.likes * 0.3) {
+    factors.push('Retweet-heavy: Content provides value others want to share');
+  }
+  
+  if (metrics.replies > metrics.likes * 0.1) {
+    factors.push('Reply-heavy: Controversial or discussion-worthy topic');
+  }
+  
+  // Content-specific success factors
+  if (text.length < 100) {
+    factors.push('Brevity: Short format increases completion/read rate');
+  }
+  if (text.includes('?')) {
+    factors.push('Question format: Directly invites engagement');
+  }
+  
+  return factors.length > 0 ? factors : ['Strong overall engagement across all metrics'];
+}
+
+/**
+ * Analyze actual content when no tweet metrics available
+ */
+function analyzeActualContent(request: ContentRequest): ContentAnalysis {
+  const content = request.raw_input;
+  console.log('[TwitterAgent] Analyzing content:', content.substring(0, 100));
+  
+  const contentLower = content.toLowerCase();
+  
+  // Analyze content structure
+  const wordCount = content.split(/\s+/).length;
+  const hasNumbers = /\d+/.test(content);
+  const hasQuestion = content.includes('?');
+  
+  console.log('[TwitterAgent] Word count:', wordCount, 'Has numbers:', hasNumbers, 'Has question:', hasQuestion);
+  
+  // Determine content category
+  let category = 'general';
+  if (contentLower.includes('automation') || contentLower.includes('workflow')) category = 'automation';
+  else if (contentLower.includes('ai') || contentLower.includes('machine learning')) category = 'ai';
+  else if (contentLower.includes('startup') || contentLower.includes('founder')) category = 'startup';
+  else if (contentLower.includes('marketing') || contentLower.includes('growth')) category = 'marketing';
+  else if (contentLower.includes('code') || contentLower.includes('developer')) category = 'tech';
+  
+  const firstSentence = content.split(/[.!?]/)[0] || '';
+  const hookStrength = analyzeHook(firstSentence);
+  
+  const insights = [
+    `Content length: ${content.length} characters (${content.length > 280 ? 'Thread candidate' : 'Single tweet'})`,
+    `Hook analysis: ${hookStrength.strength} - ${hookStrength.reason}`,
+  ];
+  
+  const mainPoints = [
+    `Opening: "${firstSentence.substring(0, 50)}${firstSentence.length > 50 ? '...' : ''}"`,
+    `Word count: ${wordCount}`,
+    hasNumbers ? '✓ Contains specific numbers/stats' : '⚠ No specific numbers',
+    hasQuestion ? '✓ Includes question' : '⚠ No question',
+  ];
+  
+  const gaps: string[] = [];
+  if (!hasNumbers) gaps.push('Add specific numbers or statistics');
+  if (!hasQuestion) gaps.push('Include a question to increase replies');
+  
+  const hashtags: Record<string, string[]> = {
+    'automation': ['#Automation', '#OpenClaw', '#Workflow'],
+    'ai': ['#AI', '#ArtificialIntelligence', '#Tech'],
+    'startup': ['#Startup', '#Founder', '#Entrepreneur'],
+    'marketing': ['#Marketing', '#Growth', '#B2B'],
+    'tech': ['#DevTools', '#Developer', '#Coding'],
+    'general': ['#Tech', '#Business', '#Tips'],
+  };
   
   return {
     source_type: request.input_type,
@@ -178,7 +362,7 @@ function analyzeActualContent(request: ContentRequest): ContentAnalysis {
     statistics: extractStats(content),
     main_points: mainPoints,
     recommended_angle: determineAngle(request.intent, hookStrength, category),
-    content_gaps: gaps.length > 0 ? gaps : ['No major gaps identified'],
+    content_gaps: gaps.length > 0 ? gaps : ['No major gaps'],
     trending_hashtags: hashtags[category]?.slice(0, 3) || hashtags['general'].slice(0, 3),
     optimal_timing: 'Tuesday-Thursday, 9-11 AM EST',
     related_accounts: getRelatedAccounts(category),
@@ -189,7 +373,6 @@ function analyzeActualContent(request: ContentRequest): ContentAnalysis {
 function analyzeHook(firstSentence: string): { strength: 'strong' | 'medium' | 'weak'; reason: string } {
   const sentence = firstSentence.toLowerCase();
   
-  // Strong hooks
   if (sentence.includes('here') && sentence.includes('why')) {
     return { strength: 'strong', reason: 'Promises value/explanation' };
   }
@@ -202,141 +385,19 @@ function analyzeHook(firstSentence: string): { strength: 'strong' | 'medium' | '
   if (sentence.includes('?')) {
     return { strength: 'strong', reason: 'Engages with question' };
   }
-  
-  // Weak hooks
   if (sentence.length < 20) {
     return { strength: 'weak', reason: 'Too short, lacks impact' };
-  }
-  if (sentence.startsWith('i think') || sentence.startsWith('in my opinion')) {
-    return { strength: 'weak', reason: 'Weak opening, lacks authority' };
   }
   
   return { strength: 'medium', reason: 'Standard opening, could be stronger' };
 }
 
-function extractThemes(content: string): string[] {
-  const themes: string[] = [];
-  const contentLower = content.toLowerCase();
-  
-  const themeKeywords: Record<string, string[]> = {
-    'productivity': ['productivity', 'efficiency', 'time', 'save'],
-    'growth': ['growth', 'scale', 'increase', 'grow'],
-    'strategy': ['strategy', 'plan', 'approach', 'framework'],
-    'tools': ['tools', 'software', 'app', 'platform'],
-    'mistakes': ['mistakes', 'wrong', 'fail', 'error'],
-    'tips': ['tips', 'tricks', 'how to', 'guide'],
-  };
-  
-  for (const [theme, keywords] of Object.entries(themeKeywords)) {
-    if (keywords.some(k => contentLower.includes(k))) {
-      themes.push(theme);
-    }
-  }
-  
-  return themes.slice(0, 3);
-}
-
-function predictPerformance(content: string, category: string): { engagement: 'high' | 'medium' | 'low'; reason: string } {
-  let score = 0;
-  
-  // Length (ideal: 100-200 chars for single tweet)
-  if (content.length >= 100 && content.length <= 280) score += 2;
-  else if (content.length > 280) score += 1;
-  
-  // Has numbers
-  if (/\d+/.test(content)) score += 1;
-  
-  // Has question or call to action
-  if (content.includes('?') || content.includes('RT if') || content.includes('comment')) score += 1;
-  
-  // Specific categories perform better
-  if (category === 'startup' || category === 'ai') score += 1;
-  
-  if (score >= 4) return { engagement: 'high', reason: 'Strong engagement factors present' };
-  if (score >= 2) return { engagement: 'medium', reason: 'Decent potential, room for improvement' };
-  return { engagement: 'low', reason: 'Missing key engagement drivers' };
-}
-
-function generateContentInsights(content: string, category: string, hook: any, performance: any): string[] {
-  const insights: string[] = [];
-  
-  // Hook analysis
-  insights.push(`Hook strength: ${hook.strength} - ${hook.reason}`);
-  
-  // Performance prediction
-  insights.push(`Predicted engagement: ${performance.engagement} - ${performance.reason}`);
-  
-  // Category-specific insights
-  if (category === 'automation') {
-    insights.push('Automation content performs well with practical examples');
-  } else if (category === 'startup') {
-    insights.push('Founder stories and lessons get high engagement');
-  } else if (category === 'ai') {
-    insights.push('AI content trending - good timing for this topic');
-  }
-  
-  // Content structure insights
-  if (content.length > 280) {
-    insights.push('Content exceeds single tweet limit - consider thread format');
-  }
-  if (!content.includes('?') && !content.includes('!')) {
-    insights.push('Adding a question or strong statement could boost engagement');
-  }
-  
-  return insights.slice(0, 3);
-}
-
-function generateMainPoints(content: string, category: string, inputType: string): string[] {
-  const points: string[] = [];
-  
-  if (inputType === 'link') {
-    points.push('Extract the core insight from the article');
-    points.push('Add your perspective/commentary');
-    points.push('Include a hook that makes people want to click');
-  } else if (inputType === 'topic') {
-    points.push('Start with a bold statement or question');
-    points.push('Provide specific examples or data');
-    points.push('End with actionable takeaway or CTA');
-  } else if (inputType === 'draft') {
-    points.push('Strengthen the opening hook');
-    points.push('Remove filler words, be concise');
-    points.push('Add engagement driver (question or CTA)');
-  } else {
-    points.push('Lead with the most valuable insight');
-    points.push('Keep it concise (under 280 chars if single tweet)');
-    points.push('End with clear next step or question');
-  }
-  
-  return points;
-}
-
-function identifyGaps(content: string, category: string): string[] {
-  const gaps: string[] = [];
-  
-  if (!content.includes('@') && !content.includes('#')) {
-    gaps.push('Consider mentioning relevant accounts or hashtags');
-  }
-  if (!/\d+%|\d+x|\$\d+/.test(content)) {
-    gaps.push('Adding specific numbers/stats could increase credibility');
-  }
-  if (!content.includes('?')) {
-    gaps.push('No question present - adding one could boost replies');
-  }
-  if (content.length < 50) {
-    gaps.push('Content is quite short - could expand with more value');
-  }
-  
-  return gaps.slice(0, 2);
-}
-
 function extractQuotes(content: string): string[] {
-  // Extract anything in quotes
   const matches = content.match(/"([^"]+)"/g);
   return matches ? matches.map(q => q.replace(/"/g, '')).slice(0, 2) : [];
 }
 
 function extractStats(content: string): string[] {
-  // Extract numbers with context
   const matches = content.match(/\d+%|\d+x|£\d+|\$\d+/g);
   return matches ? matches.slice(0, 2) : [];
 }
@@ -374,10 +435,10 @@ function detectInputType(text: string): InputType {
 
 function detectIntent(text: string): IntentType {
   const textLower = text.toLowerCase();
-  if (textLower.includes('promote') || textLower.includes('launch') || textLower.includes('check out')) return 'promote';
-  if (textLower.includes('ask') || textLower.includes('question') || textLower.includes('poll')) return 'engage';
+  if (textLower.includes('promote') || textLower.includes('launch')) return 'promote';
+  if (textLower.includes('ask') || textLower.includes('question')) return 'engage';
   if (textLower.includes('funny') || textLower.includes('joke')) return 'entertain';
-  if (textLower.includes('opinion') || textLower.includes('think') || textLower.includes('believe')) return 'opinion';
+  if (textLower.includes('opinion') || textLower.includes('think')) return 'opinion';
   return 'educate';
 }
 
@@ -386,7 +447,7 @@ function detectAudience(text: string): string {
   if (textLower.includes('founder') || textLower.includes('startup')) return 'founders';
   if (textLower.includes('marketer') || textLower.includes('growth')) return 'marketers';
   if (textLower.includes('dev') || textLower.includes('code')) return 'developers';
-  if (textLower.includes('automation') || textLower.includes('openclaw')) return 'automation';
+  if (textLower.includes('automation')) return 'automation';
   return 'general';
 }
 
@@ -400,26 +461,12 @@ function extractTopic(text: string, inputType: InputType): string | undefined {
     const match = text.match(/(?:about|on)\s+(.+?)(?:\s+(?:for|to|with)|$)/i);
     return match ? match[1].trim() : text.trim();
   }
-  if (inputType === 'idea') {
-    const match = text.match(/(?:idea|concept):\s*(.+?)(?:\s+(?:for|to|with)|$)/i);
-    return match ? match[1].trim() : text.trim();
-  }
   return undefined;
 }
 
 function generateSummary(analysis: ContentAnalysis): string {
-  return `📊 ANALYSIS SUMMARY
-==================================================
+  return `📊 ANALYSIS
 Source: ${analysis.source_title}
 Type: ${analysis.source_type}
-Recommended Angle: ${analysis.recommended_angle}
-
-💡 Key Insights:
-${analysis.key_insights.map((i, idx) => `  ${idx + 1}. ${i}`).join('\n')}
-
-📝 Main Points to Cover:
-${analysis.main_points.map((p, idx) => `  ${idx + 1}. ${p}`).join('\n')}
-
-🏷️ Suggested Hashtags: ${analysis.trending_hashtags.join(' ')}
-⏰ Best Posting Time: ${analysis.optimal_timing}`;
+Insights: ${analysis.key_insights.join('; ')}`;
 }
