@@ -42,22 +42,27 @@ export interface TwitterAgentResult {
 
 /**
  * Process input and analyze content for Twitter posting
- * Analyzes the actual content provided (tweet, link, or topic)
+ * Strips command prefixes and analyzes the actual content
  */
 export async function processTwitterContent(
   userInput: string,
   context?: string
 ): Promise<TwitterAgentResult> {
   
-  const inputType = detectInputType(userInput);
-  const intent = detectIntent(userInput);
-  const audience = detectAudience(userInput);
-  const url = extractUrl(userInput);
-  const topic = extractTopic(userInput, inputType);
+  // Strip command prefixes to get the actual content to analyze
+  const cleanInput = stripCommandPrefix(userInput);
+  console.log('[TwitterAgent] Raw input:', userInput.substring(0, 50));
+  console.log('[TwitterAgent] Clean input:', cleanInput.substring(0, 50));
+  
+  const inputType = detectInputType(cleanInput);
+  const intent = detectIntent(cleanInput);
+  const audience = detectAudience(cleanInput);
+  const url = extractUrl(cleanInput);
+  const topic = extractTopic(cleanInput, inputType);
   
   const request: ContentRequest = {
     input_type: inputType,
-    raw_input: userInput,
+    raw_input: cleanInput,  // Use the cleaned input
     intent: intent,
     target_audience: audience,
     extracted_url: url,
@@ -65,7 +70,7 @@ export async function processTwitterContent(
     context: context,
   };
   
-  // Generate ACTUAL analysis based on the input content
+  // Generate ACTUAL analysis based on the cleaned content
   const analysis = analyzeActualContent(request);
   
   return {
@@ -73,6 +78,26 @@ export async function processTwitterContent(
     analysis: analysis,
     summary: generateSummary(analysis),
   };
+}
+
+/**
+ * Strip command prefixes like "Analyze this:", "Post this:", etc.
+ */
+function stripCommandPrefix(input: string): string {
+  const prefixes = [
+    /^(analyze|check|review)\s+(this|that|it)\s*[:\-]?\s*/i,
+    /^(post|share|tweet)\s+(this|that|it)\s*[:\-]?\s*/i,
+    /^(here'?s?|this is)\s+(my\s+)?(draft|tweet|content)\s*[:\-]?\s*/i,
+    /^(idea|concept|thought)\s*[:\-]?\s*/i,
+  ];
+  
+  let cleaned = input.trim();
+  
+  for (const prefix of prefixes) {
+    cleaned = cleaned.replace(prefix, '');
+  }
+  
+  return cleaned.trim();
 }
 
 /**

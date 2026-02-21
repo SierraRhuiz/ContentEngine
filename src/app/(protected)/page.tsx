@@ -105,22 +105,25 @@ export default function AgentPage() {
 
   const formatTwitterAnalysis = (data: any): string => {
     const { input, analysis } = data;
-    return `📊 ANALYSIS: "${analysis.source_title}"
+    const preview = analysis.source_title.length > 80 
+      ? analysis.source_title.substring(0, 80) + '...' 
+      : analysis.source_title;
+    
+    return `📊 ANALYSIS
 
-**Input Type:** ${input.input_type}
-**Category:** ${analysis.source_type}
+**Content:** "${preview}"
+**Type:** ${input.input_type} | **Length:** ${analysis.key_insights?.[0]?.match(/\d+/)?.[0] || '?'} chars
 
-**Performance Analysis:**
-${analysis.key_insights?.map((i: string) => `• ${i}`).join('\n')}
+**Performance:**
+${analysis.key_insights?.slice(1).map((i: string) => `• ${i}`).join('\n')}
 
-**Content Breakdown:**
+**Structure:**
 ${analysis.main_points?.map((p: string) => `• ${p}`).join('\n')}
 
-**Issues to Fix:**
+**Fixes Needed:**
 ${analysis.content_gaps?.map((g: string) => `• ${g}`).join('\n')}
 
-**Suggested Hashtags:** ${analysis.trending_hashtags?.join(' ')}
-**Best Time:** ${analysis.optimal_timing || 'Peak hours'}`;
+**Hashtags:** ${analysis.trending_hashtags?.join(' ')}`;
   };
 
   const handleSend = async () => {
