@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -150,13 +151,41 @@ const mockLogs = [
 ];
 
 export default function ScoutPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('sources');
   const [searchQuery, setSearchQuery] = useState('');
   const [scoreFilter, setScoreFilter] = useState('all');
   const [isScanning, setIsScanning] = useState(false);
   const [minScore, setMinScore] = useState(7);
-  const [targets, setTargets] = useState(mockTargets);
+  
+  // Load from localStorage on mount
+  const [targets, setTargets] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('scout-targets');
+      return saved ? JSON.parse(saved) : mockTargets;
+    }
+    return mockTargets;
+  });
+  
+  const [trackedTweets, setTrackedTweets] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('scout-tracked-tweets');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  
   const [newTarget, setNewTarget] = useState({ type: 'account', platform: 'twitter', value: '' });
+
+  // Save to localStorage whenever targets change
+  useEffect(() => {
+    localStorage.setItem('scout-targets', JSON.stringify(targets));
+  }, [targets]);
+  
+  // Save tracked tweets
+  useEffect(() => {
+    localStorage.setItem('scout-tracked-tweets', JSON.stringify(trackedTweets));
+  }, [trackedTweets]);
 
   const filteredSources = mockSources.filter(source => {
     const matchesSearch = source.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -195,12 +224,17 @@ export default function ScoutPage() {
     setNewTarget({ type: 'account', platform: 'twitter', value: '' });
     
     // Track with config
-    await trackAccount(pendingTarget.value, scrapeConfig);
+    const success = await trackAccount(pendingTarget.value, scrapeConfig);
     
     // Close modal and reset
     setShowConfigModal(false);
     setPendingTarget(null);
     setScrapeConfig({ maxTweets: 10, includeReplies: false, includeRetweets: false });
+    
+    // Navigate to detail view if successful
+    if (success) {
+      window.location.href = `/scout/sources?author=${encodeURIComponent(pendingTarget.value)}`;
+    }
   };
 
   const handleAddTarget = async () => {
@@ -227,7 +261,6 @@ export default function ScoutPage() {
 
   const [monitoredSources, setMonitoredSources] = useState<number[]>([]);
   const [isTracking, setIsTracking] = useState(false);
-  const [trackedTweets, setTrackedTweets] = useState<any[]>([]);
 
   // Fetch tweets from tracked accounts using Apify
   const trackAccount = async (username: string, config: any = {}) => {
@@ -273,20 +306,25 @@ export default function ScoutPage() {
           score: calculateScore(tweet),
           category: 'Twitter',
           discoveredAt: 'Just now',
+          likes: tweet.likes || 0,
+          retweets: tweet.retweets || 0,
+          replies: tweet.comments || 0,
+          text: tweet.text,
           status: 'new',
         }));
 
         // Add to tracked tweets
         setTrackedTweets(prev => [...newSources, ...prev]);
         
-        return newSources;
+        return true; // Success
       }
       
-      return [];
+      return false; // No tweets found
     } catch (error) {
       console.error('Tracking error:', error);
-      alert('Failed to track account. Check API configuration.');
-      return [];
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to track account: ${errorMessage}`);
+      return false;
     } finally {
       setIsTracking(false);
     }
@@ -603,26 +641,31 @@ export default function ScoutPage() {
                   {targets.map((target) => (
                     <div
                       key={target.id}
-                      className="flex items-center justify-between p-3 bg-sidebar-accent rounded-lg"
+                      className="flex items-center justify-between p-3 bg-sidebar-accent rounded-lg cursor-pointer hover:bg-cyan-500/10 transition-colors"
+                      onClick={() => {
+                        if (target.type === 'account') {
+                          window.location.href = `/scout/sources?author=${encodeURIComponent(target.value)}`;
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-3">
-                        {target.type === 'account' && <User className="w-4 h-4 text-muted-foreground" />}
-                        {target.type === 'hashtag' && <Hash className="w-4 h-4 text-muted-foreground" />}
-                        {target.type === 'keyword' && <Search className="w-4 h-4 text-muted-foreground" />}
+                        {target.type === 'account' && <User className="w-4 h-4 text-cyan-400" />}
+                        {target.type === 'hashtag' && <Hash className="w-4 h-4 text-cyan-400" />}
+                        {target.type === 'keyword' && <Search className="w-4 h-4 text-cyan-400" />}
                         
-                        <span className="font-medium">{target.value}</span>
+                        <span className="font-medium text-cyan-100">{target.value}</span>
                         
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
                           {target.platform}
                         </Badge>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleToggleTarget(target.id)}
-                          className={target.active ? 'text-green-500' : 'text-muted-foreground'}
+                          className={target.active ? 'text-emerald-400' : 'text-slate-500'}
                         >
                           {target.active ? 'Active' : 'Paused'}
                         </Button>
@@ -631,7 +674,7 @@ export default function ScoutPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveTarget(target.id)}
-                          className="text-red-500 hover:text-red-600"
+                          className="text-red-400 hover:text-red-300"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
