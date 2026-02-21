@@ -171,10 +171,18 @@ export default function ScoutPage() {
     return matchesSearch && matchesScore;
   });
 
-  const handleAddTarget = () => {
+  const handleAddTarget = async () => {
     if (!newTarget.value.trim()) return;
-    setTargets([...targets, { ...newTarget, id: Date.now(), active: true }]);
+    
+    // Add to targets list
+    const targetToAdd = { ...newTarget, id: Date.now(), active: true };
+    setTargets([...targets, targetToAdd]);
     setNewTarget({ type: 'account', platform: 'twitter', value: '' });
+    
+    // If it's an account, immediately track it
+    if (newTarget.type === 'account' && newTarget.platform === 'twitter') {
+      await trackAccount(newTarget.value);
+    }
   };
 
   const handleRemoveTarget = (id: number) => {
@@ -186,16 +194,108 @@ export default function ScoutPage() {
   };
 
   const [monitoredSources, setMonitoredSources] = useState<number[]>([]);
+  const [isTracking, setIsTracking] = useState(false);
+  const [trackedTweets, setTrackedTweets] = useState<any[]>([]);
+
+  // Fetch tweets from tracked accounts using Apify
+  const trackAccount = async (username: string) => {
+    try {
+      setIsTracking(true);
+      
+      // Remove @ if present
+      const cleanUsername = username.replace('@', '');
+      
+      // Call Apify API via your existing endpoint
+      const response = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'twitter',
+          username: cleanUsername,
+          options: { 
+            maxTweets: 10,
+            includeReplies: false,
+            filter: 'latest'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch tweets');
+      }
+
+      const data = await response.json();
+      
+      if (data.tweets && data.tweets.length > 0) {
+        // Transform tweets to source format
+        const newSources = data.tweets.map((tweet: any, index: number) => ({
+          id: Date.now() + index,
+          platform: 'twitter',
+          title: tweet.text?.substring(0, 80) + (tweet.text?.length > 80 ? '...' : ''),
+          author: `@${tweet.author || cleanUsername}`,
+          url: tweet.url,
+          views: tweet.views ? `${(tweet.views / 1000).toFixed(1)}K` : 'N/A',
+          velocity: `${Math.floor(Math.random() * 20 + 5)}K/hr`, // Simulated for now
+          score: calculateScore(tweet),
+          category: 'Twitter',
+          discoveredAt: 'Just now',
+          status: 'new',
+        }));
+
+        // Add to tracked tweets
+        setTrackedTweets(prev => [...newSources, ...prev]);
+        
+        return newSources;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Tracking error:', error);
+      alert('Failed to track account. Check API configuration.');
+      return [];
+    } finally {
+      setIsTracking(false);
+    }
+  };
+
+  // Calculate virality score based on engagement
+  const calculateScore = (tweet: any) => {
+    const likes = tweet.likes || 0;
+    const retweets = tweet.retweets || 0;
+    const views = tweet.views || 1;
+    
+    // Simple scoring algorithm
+    const engagementRate = ((likes + retweets * 2) / views) * 100;
+    
+    if (engagementRate > 5) return 9;
+    if (engagementRate > 3) return 8;
+    if (engagementRate > 1) return 7;
+    if (engagementRate > 0.5) return 6;
+    return 5;
+  };
+
+  // Track all target accounts
+  const runTrackingScan = async () => {
+    const accountTargets = targets.filter(t => t.type === 'account' && t.active);
+    
+    if (accountTargets.length === 0) {
+      alert('No active account targets to track');
+      return;
+    }
+
+    setIsScanning(true);
+    
+    for (const target of accountTargets) {
+      await trackAccount(target.value);
+    }
+    
+    setIsScanning(false);
+  };
 
   const addToMonitoring = (sourceId: number) => {
     if (!monitoredSources.includes(sourceId)) {
       setMonitoredSources([...monitoredSources, sourceId]);
     }
-  };
-
-  const runScan = () => {
-    setIsScanning(true);
-    setTimeout(() => setIsScanning(false), 3000);
   };
 
   return (
@@ -224,8 +324,8 @@ export default function ScoutPage() {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={runScan}
-            disabled={isScanning}
+            onClick={runTrackingScan}
+            disabled={isScanning || isTracking}
           >
             {isScanning ? (
               <>
@@ -426,48 +526,39 @@ export default function ScoutPage() {
               <CardContent className="space-y-4">
                 {/* Add New Target */}
                 <div className="flex gap-2">
-                  <div className="relative">
-                    <select
-                      value={newTarget.type}
-                      onChange={(e) => setNewTarget({ ...newTarget, type: e.target.value })}
-                      className="appearance-none bg-slate-900/80 border border-cyan-500/30 text-cyan-100 text-sm rounded-lg px-4 py-2.5 pr-10 min-w-[120px] focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 cursor-pointer hover:border-cyan-500/50 transition-colors"
-                    >
-                      <option value="account" className="bg-slate-900 text-cyan-100">Account</option>
-                      <option value="hashtag" className="bg-slate-900 text-cyan-100">Hashtag</option>
-                      <option value="keyword" className="bg-slate-900 text-cyan-100">Keyword</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
+                  <CustomDropdown
+                    value={newTarget.type}
+                    options={[
+                      { value: 'account', label: 'Account' },
+                      { value: 'hashtag', label: 'Hashtag' },
+                      { value: 'keyword', label: 'Keyword' },
+                    ]}
+                    onChange={(value) => setNewTarget({ ...newTarget, type: value })}
+                    className="min-w-[120px]"
+                  />
                   
-                  <div className="relative">
-                    <select
-                      value={newTarget.platform}
-                      onChange={(e) => setNewTarget({ ...newTarget, platform: e.target.value })}
-                      className="appearance-none bg-slate-900/80 border border-cyan-500/30 text-cyan-100 text-sm rounded-lg px-4 py-2.5 pr-10 min-w-[140px] focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 cursor-pointer hover:border-cyan-500/50 transition-colors"
-                    >
-                      <option value="twitter" className="bg-slate-900 text-cyan-100">Twitter/X</option>
-                      <option value="youtube" className="bg-slate-900 text-cyan-100">YouTube</option>
-                      <option value="all" className="bg-slate-900 text-cyan-100">All Platforms</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
+                  <CustomDropdown
+                    value={newTarget.platform}
+                    options={[
+                      { value: 'twitter', label: 'Twitter/X' },
+                      { value: 'youtube', label: 'YouTube' },
+                      { value: 'all', label: 'All Platforms' },
+                    ]}
+                    onChange={(value) => setNewTarget({ ...newTarget, platform: value })}
+                    className="min-w-[140px]"
+                  />
                   
                   <Input
                     placeholder="@username, #hashtag, or keyword"
                     value={newTarget.value}
                     onChange={(e) => setNewTarget({ ...newTarget, value: e.target.value })}
-                    className="flex-1"
+                    className="flex-1 bg-slate-900/80 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
                   />
                   
-                  <Button onClick={handleAddTarget}>
+                  <Button 
+                    onClick={handleAddTarget}
+                    className="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30"
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Add
                   </Button>
