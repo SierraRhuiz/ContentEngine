@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 const contentLinks = [
   { href: "/", label: "Agent", icon: "🤖" },
+  { href: "/mission-control", label: "Mission Control", icon: "🎯" },
   { href: "/feed", label: "Feed", icon: "📰" },
   { href: "/queue", label: "Queue", icon: "📋" },
   { href: "/brain", label: "Brain", icon: "🧠" },
