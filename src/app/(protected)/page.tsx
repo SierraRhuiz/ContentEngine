@@ -1,368 +1,344 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Radio, 
+  Brain, 
+  Layers, 
+  Sparkles, 
+  Target,
+  Play,
+  Check,
+  Edit,
+  X,
+  Copy,
+  Youtube,
+  Twitter,
+  Instagram
+} from 'lucide-react';
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-}
+// AI Workforce Team
+const workforce = [
+  {
+    id: 1,
+    name: 'Scout',
+    role: 'EMPLOYEE #1',
+    icon: Radio,
+    description: 'Scrapes Twitter \u0026 YouTube. Tracks velocity, engagement, virality signals.',
+    metric: '21 sources',
+    status: 'Active',
+  },
+  {
+    id: 2,
+    name: 'Strategist',
+    role: 'EMPLOYEE #2',
+    icon: Brain,
+    description: 'Develops your angle. Converts ideas into threads in your exact voice.',
+    metric: '63 insights',
+    status: 'Active',
+  },
+  {
+    id: 3,
+    name: 'Repurposer',
+    role: 'EMPLOYEE #3',
+    icon: Layers,
+    description: 'Expands threads into YT scripts, IG scripts, and tweet variations.',
+    metric: '63 drafts',
+    status: 'Active',
+  },
+  {
+    id: 4,
+    name: 'Humanizer',
+    role: 'EMPLOYEE #4',
+    icon: Sparkles,
+    description: 'Removes robotic phrasing. Improves clarity and natural flow.',
+    metric: '0 reviewed',
+    status: 'Active',
+  },
+  {
+    id: 5,
+    name: 'Viral Optimizer',
+    role: 'EMPLOYEE #5',
+    icon: Target,
+    description: 'Reviews for virality. Matches tone. Strengthens hooks. Delivers to dashboard.',
+    metric: '0 published',
+    status: 'Active',
+  },
+];
 
-const recipes = {
-  writing: [
-    {
-      title: "Create X posts from a YouTube video",
-      icon: "🎬",
-      prompt: "Create some X posts from my favorite YouTube video",
+// Mock Scout Feed data
+const scoutFeed = [
+  {
+    id: 1,
+    platform: 'youtube',
+    score: 10,
+    date: '12/02/2026 13:43',
+    views: '172.0K',
+    velocity: '1.0K/hr',
+    status: 'queued',
+  },
+  {
+    id: 2,
+    platform: 'youtube',
+    score: 10,
+    date: '13/02/2026 13:43',
+    views: '159.0K',
+    velocity: '1.1K/hr',
+    status: 'queued',
+  },
+];
+
+// Mock Content Packs
+const contentPacks = [
+  {
+    id: 1,
+    status: 'Active',
+    platform: 'instagram',
+    content: {
+      hook: 'Most people do this wrong.',
+      body: 'AntiGravity + Claude Code Destroys Every Workflow Tool (NEW Skill)',
+      cta: 'Most people watch this and miss the implementation layer.',
     },
-    {
-      title: "Write a post based on a blog",
-      icon: "📝",
-      prompt: "Write an X post based on a blog post",
-    },
-    {
-      title: "Adapt a viral tweet",
-      icon: "🔥",
-      prompt: "Find and adapt a viral tweet for my audience",
-    },
-    {
-      title: "Thread from a topic",
-      icon: "🧵",
-      prompt: "Create a thread about a specific topic",
-    },
-  ],
-  research: [
-    {
-      title: "Research trending topics",
-      icon: "📈",
-      prompt: "What topics are trending in my niche?",
-    },
-    {
-      title: "Find viral tweets",
-      icon: "🔥",
-      prompt: "Find viral tweets in my industry",
-    },
-    {
-      title: "Analyze competitors",
-      icon: "🕵️",
-      prompt: "Analyze what my competitors are posting",
-    },
-    {
-      title: "Content gap analysis",
-      icon: "🎯",
-      prompt: "What content am I missing?",
-    },
-  ],
-  twitter: [
-    {
-      title: "Analyze a link",
-      icon: "🔗",
-      prompt: "Analyze this: https://example.com/article",
-    },
-    {
-      title: "Analyze a tweet topic",
-      icon: "💬",
-      prompt: "Analyze: Tweet about automation mistakes founders make",
-    },
-    {
-      title: "Analyze an idea",
-      icon: "💡",
-      prompt: "Analyze: Idea - The paradox of trying to automate everything",
-    },
-    {
-      title: "Analyze my draft",
-      icon: "✏️",
-      prompt: "Analyze this draft: We help businesses grow faster with automation",
-    },
-  ],
-};
+  },
+];
 
-const SYSTEM_PROMPT = `You are a content creation assistant for X/Twitter. You help users create engaging tweets, threads, and social media content.
-
-Your capabilities:
-1. Generate tweets and threads from ideas
-2. Adapt viral content to user's voice
-3. Create content from YouTube videos or blog posts
-4. Research trending topics
-
-Be concise, engaging, and focus on creating content that drives engagement. When generating tweets, keep them under 280 characters unless asked for a thread.
-
-Format your responses clearly. When generating multiple options, number them.`;
-
-export default function AgentPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<"writing" | "research" | "twitter">("writing");
-  const [twitterAnalysis, setTwitterAnalysis] = useState<any>(null);
-
-  const formatTwitterAnalysis = (data: any): string => {
-    const { analysis } = data;
-    const isTweetAnalysis = analysis.source_type === 'tweet_analysis';
-    
-    if (isTweetAnalysis) {
-      // Format for fetched tweet with metrics
-      return `📊 TWEET ANALYSIS
-
-**Tweet:** "${analysis.source_title}"
-
-**Performance Metrics:**
-${analysis.key_insights?.map((i: string) => `• ${i}`).join('\n')}
-
-**Why It Works:**
-${analysis.content_gaps?.map((g: string) => `• ${g}`).join('\n')}
-
-**Structure Breakdown:**
-${analysis.main_points?.map((p: string) => `• ${p}`).join('\n')}
-
-**Hashtags:** ${analysis.trending_hashtags?.join(' ')}`;
-    }
-    
-    // Format for regular content analysis
-    const preview = analysis.source_title.length > 80 
-      ? analysis.source_title.substring(0, 80) + '...' 
-      : analysis.source_title;
-    
-    return `📊 CONTENT ANALYSIS
-
-**Content:** "${preview}"
-**Type:** ${analysis.source_type}
-
-**Analysis:**
-${analysis.key_insights?.map((i: string) => `• ${i}`).join('\n')}
-
-**Structure:**
-${analysis.main_points?.map((p: string) => `• ${p}`).join('\n')}
-
-**Improvements:**
-${analysis.content_gaps?.map((g: string) => `• ${g}`).join('\n')}
-
-**Hashtags:** ${analysis.trending_hashtags?.join(' ')}`;
-  };
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: input,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      // Twitter Agent Mode - use Input + Analyze pipeline
-      if (mode === "twitter") {
-        const response = await fetch("/api/twitter/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ input }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to analyze content");
-        }
-
-        const data = await response.json();
-        setTwitterAnalysis(data.data);
-
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: formatTwitterAnalysis(data.data),
-          timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
-      } else {
-        // Writing/Research Mode - use Kimi chat
-        // Build conversation history for context
-        const conversationHistory = messages.map((msg) => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-        }));
-
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: [
-              { role: "system", content: SYSTEM_PROMPT },
-              ...conversationHistory,
-              { role: "user", content: input },
-            ],
-            mode,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to get response");
-        }
-
-        const data = await response.json();
-
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: data.content,
-          timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
-      }
-    } catch (error) {
-      console.error("Chat error:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry, something went wrong. Please try again.",
-          timestamp: new Date(),
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export default function MissionControlPage() {
+  const [activeTab, setActiveTab] = useState('instagram');
+  const [selectedPack, setSelectedPack] = useState(contentPacks[0]);
 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/30 px-6 py-5">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Agent</h1>
-          <p className="text-sm text-muted-foreground">
-            Your AI content assistant for X/Twitter
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 mb-1">Mission Control</p>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Content Team</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Simple workflow: pick source videos → Generate Pack → open pack → approve outputs.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant={mode === "writing" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setMode("writing")}
-          >
-            ✍️ Writing
-          </Button>
-          <Button
-            variant={mode === "research" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setMode("research")}
-          >
-            🔍 Research
-          </Button>
-          <Button
-            variant={mode === "twitter" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setMode("twitter")}
-          >
-            🐦 Twitter Agent
-          </Button>
+        
+        {/* Stats */}
+        <div className="flex gap-3">
+          <div className="bg-card border border-border/50 rounded-lg px-5 py-3 text-center min-w-[90px]">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Sources</p>
+            <p className="text-xl font-bold text-foreground">21</p>
+          </div>
+          <div className="bg-card border border-border/50 rounded-lg px-5 py-3 text-center min-w-[90px]">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Packs</p>
+            <p className="text-xl font-bold text-foreground">1</p>
+          </div>
+          <div className="bg-card border border-border/50 rounded-lg px-5 py-3 text-center min-w-[90px]">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Published</p>
+            <p className="text-xl font-bold text-foreground">0</p>
+          </div>
         </div>
       </div>
 
-      {/* Chat Area */}
-      <ScrollArea className="flex-1 p-6">
-        {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-10">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                What would you like to create?
-              </h2>
-              <p className="mt-2 text-muted-foreground">
-                Start a conversation or pick a recipe below
-              </p>
-            </div>
-
-            {/* Recipes */}
-            <div className="grid w-full max-w-2xl grid-cols-2 gap-4">
-              {recipes[mode].map((recipe: any) => (
-                <Card
-                  key={recipe.title}
-                  className="cursor-pointer border-border/50 bg-card p-5 transition-all duration-200 hover:border-border hover:bg-accent/30 hover:shadow-md"
-                  onClick={() => setInput(recipe.prompt)}
+      <div className="flex-1 overflow-y-auto p-6">
+        {/* AI Workforce */}
+        <div className="mb-8">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 mb-4">AI WORKFORCE</p>
+          
+          <div className="grid grid-cols-5 gap-4">
+            {workforce.map((employee) => {
+              const Icon = employee.icon;
+              return (
+                <Card 
+                  key={employee.id}
+                  className="border-border/50 bg-card hover:border-border transition-colors"
                 >
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">{recipe.icon}</span>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {recipe.title}
-                      </p>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-accent">
+                        <Icon className="w-5 h-5 text-foreground" />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <span className="text-xs text-green-500">{employee.status}</span>
+                      </div>
                     </div>
-                  </div>
+                    
+                    <p className="text-muted-foreground text-xs mb-1">{employee.role}</p>
+                    <h3 className="font-semibold text-foreground text-base mb-2">{employee.name}</h3>
+                    <p className="text-muted-foreground text-xs leading-relaxed mb-3">
+                      {employee.description}
+                    </p>
+                    
+                    <div className="bg-sidebar-accent rounded-md px-3 py-2 text-center">
+                      <span className="text-sm font-medium text-foreground">{employee.metric}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Scout Feed */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-foreground">Scout Feed</h2>
+              <Badge variant="outline" className="text-muted-foreground">
+                21 sources tracked
+              </Badge>
+            </div>
+            
+            <div className="space-y-3">
+              {scoutFeed.map((source) => (
+                <Card key={source.id} className="border-border/50 bg-card">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Youtube className="w-4 h-4 text-red-500" />
+                      <Badge className="bg-green-500/10 text-green-500 text-xs hover:bg-green-500/20">
+                        Score {source.score}
+                      </Badge>
+                      <span className="text-muted-foreground text-xs">{source.date}</span>
+                    </div>
+                    
+                    <h3 className="text-foreground font-semibold mb-3">Source #{source.id}</h3>
+                    
+                    <div className="grid grid-cols-4 gap-2 mb-3">
+                      <div className="bg-sidebar-accent rounded p-2">
+                        <p className="text-muted-foreground text-[10px] uppercase">Views</p>
+                        <p className="text-foreground font-semibold text-sm">{source.views}</p>
+                      </div>
+                      
+                      <div className="bg-sidebar-accent rounded p-2">
+                        <p className="text-muted-foreground text-[10px] uppercase">Velocity</p>
+                        <p className="text-foreground font-semibold text-sm">{source.velocity}</p>
+                      </div>
+                      
+                      <div className="bg-sidebar-accent rounded p-2">
+                        <p className="text-muted-foreground text-[10px] uppercase">Platform</p>
+                        <p className="text-foreground font-semibold text-sm capitalize">{source.platform}</p>
+                      </div>
+                      
+                      <div className="bg-sidebar-accent rounded p-2">
+                        <p className="text-muted-foreground text-[10px] uppercase">Status</p>
+                        <p className="text-yellow-500 font-semibold text-sm capitalize">{source.status}</p>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      size="sm" 
+                      className="w-full"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Generate Pack
+                    </Button>
+                  </CardContent>
                 </Card>
               ))}
             </div>
-
-            <Badge variant="outline" className="text-muted-foreground">
-              Mode: {mode === "writing" ? "✍️ Writing" : mode === "research" ? "🔍 Research" : "🐦 Twitter Agent"}
-            </Badge>
           </div>
-        ) : (
-          <div className="mx-auto max-w-3xl space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-card border border-border/50 text-foreground"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-2xl bg-card border border-border/50 px-4 py-3 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Thinking...</span>
-                </div>
-              </div>
+
+          {/* Generated Content Packs */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-foreground">Generated Content Packs</h2>
+              <select className="bg-card border-border/50 text-foreground text-sm rounded px-3 py-1.5">
+                <option>Active (1)</option>
+                <option>All</option>
+                <option>Archived</option>
+              </select>
+            </div>
+            
+            {selectedPack && (
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 mb-4">
+                    <Button size="sm" className="flex-1">
+                      Generate Content
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-green-500/50 text-green-500 hover:bg-green-500/10">
+                      <Check className="w-4 h-4 mr-1" />
+                      Approve
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-orange-500/50 text-orange-500 hover:bg-orange-500/10">
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-red-500/50 text-red-500 hover:bg-red-500/10">
+                      <X className="w-4 h-4 mr-1" />
+                      Reject
+                    </Button>
+                  </div>
+                  
+                  {/* Platform Tabs */}
+                  <div className="flex border-b border-border/30 mb-4">
+                    <button
+                      onClick={() => setActiveTab('twitter')}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'twitter' 
+                          ? 'border-primary text-foreground' 
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Twitter className="w-4 h-4" />
+                      X / TWITTER
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('instagram')}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'instagram' 
+                          ? 'border-primary text-foreground' 
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Instagram className="w-4 h-4" />
+                      INSTAGRAM
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('youtube')}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'youtube' 
+                          ? 'border-primary text-foreground' 
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Youtube className="w-4 h-4" />
+                      YOUTUBE
+                    </button>
+                  </div>
+                  
+                  {/* Content Preview */}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-muted-foreground text-xs uppercase">Instagram Script</p>
+                        <Button size="sm" variant="ghost" className="h-6 text-xs">
+                          <Copy className="w-3 h-3 mr-1" />
+                          Copy
+                        </Button>
+                      </div>
+                      
+                      <div className="bg-sidebar-accent rounded-lg p-4 space-y-3">
+                        <div>
+                          <span className="text-muted-foreground text-xs">Hook:</span>
+                          <p className="text-foreground">{selectedPack.content.hook}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Body:</span>
+                          <p className="text-foreground">{selectedPack.content.body}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Hook:</span>
+                          <p className="text-foreground">{selectedPack.content.cta}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
-        )}
-      </ScrollArea>
-
-      {/* Input */}
-      <div className="border-t border-border/30 p-5">
-        <div className="mx-auto flex max-w-3xl gap-3">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Tell me what content you want to create..."
-            className="min-h-[48px] max-h-[200px] resize-none"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            disabled={isLoading}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
-          </Button>
         </div>
       </div>
     </div>
