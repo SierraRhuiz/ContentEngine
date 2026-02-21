@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ArrowLeft, 
   Twitter, 
@@ -205,11 +204,21 @@ export default function SourceDetailPage() {
         {tweets.length > 0 && (
           <div className="flex items-center justify-between mb-4 p-3 bg-slate-900/60 border border-cyan-500/20 rounded-lg">
             <div className="flex items-center gap-3">
-              <Checkbox
-                checked={selectedTweets.length === tweets.length && tweets.length > 0}
-                onCheckedChange={toggleSelectAll}
-                className="border-cyan-500/50 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
-              />
+              <button
+                onClick={toggleSelectAll}
+                className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                  selectedTweets.length === tweets.length && tweets.length > 0
+                    ? 'bg-cyan-500 border-cyan-500'
+                    : 'border-cyan-500/50 hover:border-cyan-500'
+                }`}
+              >
+                {selectedTweets.length === tweets.length && tweets.length > 0 && (
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              
               <span className="text-sm text-cyan-100">
                 {selectedTweets.length === tweets.length ? 'Deselect All' : 'Select All'}
               </span>
@@ -250,11 +259,20 @@ export default function SourceDetailPage() {
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <Checkbox
-                      checked={selectedTweets.includes(tweet.id)}
-                      onCheckedChange={() => toggleSelect(tweet.id)}
-                      className="mt-1 border-cyan-500/50 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
-                    />
+                    <button
+                      onClick={() => toggleSelect(tweet.id)}
+                      className={`mt-1 w-5 h-5 rounded border flex items-center justify-center transition-colors flex-shrink-0 ${
+                        selectedTweets.includes(tweet.id)
+                          ? 'bg-cyan-500 border-cyan-500'
+                          : 'border-cyan-500/50 hover:border-cyan-500'
+                      }`}
+                    >
+                      {selectedTweets.includes(tweet.id) && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
                     
                     {getPlatformIcon(tweet.platform)}
                     
