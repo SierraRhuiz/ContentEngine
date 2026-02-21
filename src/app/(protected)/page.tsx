@@ -15,28 +15,74 @@ interface Message {
   timestamp: Date;
 }
 
-const recipes = [
-  {
-    title: "Create X posts from a YouTube video",
-    icon: "🎬",
-    prompt: "Create some X posts from my favorite YouTube video",
-  },
-  {
-    title: "Write a post based on a blog",
-    icon: "📝",
-    prompt: "Write an X post based on a blog post",
-  },
-  {
-    title: "Adapt a viral tweet",
-    icon: "🔥",
-    prompt: "Find and adapt a viral tweet for my audience",
-  },
-  {
-    title: "Thread from a topic",
-    icon: "🧵",
-    prompt: "Create a thread about a specific topic",
-  },
-];
+const recipes = {
+  writing: [
+    {
+      title: "Create X posts from a YouTube video",
+      icon: "🎬",
+      prompt: "Create some X posts from my favorite YouTube video",
+    },
+    {
+      title: "Write a post based on a blog",
+      icon: "📝",
+      prompt: "Write an X post based on a blog post",
+    },
+    {
+      title: "Adapt a viral tweet",
+      icon: "🔥",
+      prompt: "Find and adapt a viral tweet for my audience",
+    },
+    {
+      title: "Thread from a topic",
+      icon: "🧵",
+      prompt: "Create a thread about a specific topic",
+    },
+  ],
+  research: [
+    {
+      title: "Research trending topics",
+      icon: "📈",
+      prompt: "What topics are trending in my niche?",
+    },
+    {
+      title: "Find viral tweets",
+      icon: "🔥",
+      prompt: "Find viral tweets in my industry",
+    },
+    {
+      title: "Analyze competitors",
+      icon: "🕵️",
+      prompt: "Analyze what my competitors are posting",
+    },
+    {
+      title: "Content gap analysis",
+      icon: "🎯",
+      prompt: "What content am I missing?",
+    },
+  ],
+  twitter: [
+    {
+      title: "Analyze a link",
+      icon: "🔗",
+      prompt: "Post this: https://example.com/article",
+    },
+    {
+      title: "Tweet about a topic",
+      icon: "💬",
+      prompt: "Tweet about automation mistakes founders make",
+    },
+    {
+      title: "Expand an idea",
+      icon: "💡",
+      prompt: "Idea: The paradox of trying to automate everything",
+    },
+    {
+      title: "Improve my draft",
+      icon: "✏️",
+      prompt: "Here's my draft: We help businesses grow faster with automation",
+    },
+  ],
+};
 
 const SYSTEM_PROMPT = `You are a content creation assistant for X/Twitter. You help users create engaging tweets, threads, and social media content.
 
@@ -54,7 +100,30 @@ export default function AgentPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<"writing" | "research">("writing");
+  const [mode, setMode] = useState<"writing" | "research" | "twitter">("writing");
+  const [twitterAnalysis, setTwitterAnalysis] = useState<any>(null);
+
+  const formatTwitterAnalysis = (data: any): string => {
+    const { input, analysis } = data;
+    return `📊 **Twitter Analysis Complete**
+
+**Input Type:** ${input.input_type}
+**Intent:** ${input.intent}
+**Target Audience:** ${input.target_audience}
+
+**Recommended Angle:** ${analysis.recommended_angle?.replace(/_/g, ' ')}
+
+💡 **Key Insights:**
+${analysis.key_insights?.map((i: string) => `• ${i}`).join('\n')}
+
+📝 **Main Points to Cover:**
+${analysis.main_points?.map((p: string) => `• ${p}`).join('\n')}
+
+🏷️ **Suggested Hashtags:** ${analysis.trending_hashtags?.join(' ')}
+⏰ **Best Time:** ${analysis.optimal_timing || 'Peak hours'}
+
+✅ Ready for Create Module (next: generate actual tweet)`;
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -71,39 +140,65 @@ export default function AgentPage() {
     setIsLoading(true);
 
     try {
-      // Build conversation history for context
-      const conversationHistory = messages.map((msg) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      }));
+      // Twitter Agent Mode - use Input + Analyze pipeline
+      if (mode === "twitter") {
+        const response = await fetch("/api/twitter/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input }),
+        });
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...conversationHistory,
-            { role: "user", content: input },
-          ],
-          mode,
-        }),
-      });
+        if (!response.ok) {
+          throw new Error("Failed to analyze content");
+        }
 
-      if (!response.ok) {
-        throw new Error("Failed to get response");
+        const data = await response.json();
+        setTwitterAnalysis(data.data);
+
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: formatTwitterAnalysis(data.data),
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+      } else {
+        // Writing/Research Mode - use Kimi chat
+        // Build conversation history for context
+        const conversationHistory = messages.map((msg) => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        }));
+
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              ...conversationHistory,
+              { role: "user", content: input },
+            ],
+            mode,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to get response");
+        }
+
+        const data = await response.json();
+
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: data.content,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
       }
-
-      const data = await response.json();
-
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.content,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Chat error:", error);
       setMessages((prev) => [
@@ -145,6 +240,13 @@ export default function AgentPage() {
           >
             🔍 Research
           </Button>
+          <Button
+            variant={mode === "twitter" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("twitter")}
+          >
+            🐦 Twitter Agent
+          </Button>
         </div>
       </div>
 
@@ -163,7 +265,7 @@ export default function AgentPage() {
 
             {/* Recipes */}
             <div className="grid w-full max-w-2xl grid-cols-2 gap-4">
-              {recipes.map((recipe) => (
+              {recipes[mode].map((recipe: any) => (
                 <Card
                   key={recipe.title}
                   className="cursor-pointer border-border/50 bg-card p-5 transition-all duration-200 hover:border-border hover:bg-accent/30 hover:shadow-md"
@@ -182,7 +284,7 @@ export default function AgentPage() {
             </div>
 
             <Badge variant="outline" className="text-muted-foreground">
-              Mode: {mode === "writing" ? "✍️ Writing" : "🔍 Research"}
+              Mode: {mode === "writing" ? "✍️ Writing" : mode === "research" ? "🔍 Research" : "🐦 Twitter Agent"}
             </Badge>
           </div>
         ) : (
