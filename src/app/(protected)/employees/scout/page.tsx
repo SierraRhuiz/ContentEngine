@@ -298,32 +298,26 @@ export default function ScoutPage() {
             {/* Filters */}
             <div className="flex gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <Input
                   placeholder="Search sources by title or author..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-slate-900/80 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
                 />
               </div>
               
-              <div className="relative">
-                <select
-                  value={scoreFilter}
-                  onChange={(e) => setScoreFilter(e.target.value)}
-                  className="appearance-none bg-slate-900/80 border border-cyan-500/30 text-cyan-100 text-sm rounded-lg px-4 py-2.5 pr-10 min-w-[140px] focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 cursor-pointer hover:border-cyan-500/50 transition-colors"
-                >
-                  <option value="all" className="bg-slate-900 text-cyan-100">All Scores</option>
-                  <option value="9" className="bg-slate-900 text-cyan-100">Score 9+</option>
-                  <option value="8" className="bg-slate-900 text-cyan-100">Score 8+</option>
-                  <option value="7" className="bg-slate-900 text-cyan-100">Score 7+</option>
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
+              <CustomDropdown
+                value={scoreFilter}
+                options={[
+                  { value: 'all', label: 'All Scores' },
+                  { value: '9', label: 'Score 9+' },
+                  { value: '8', label: 'Score 8+' },
+                  { value: '7', label: 'Score 7+' },
+                ]}
+                onChange={setScoreFilter}
+                className="min-w-[140px]"
+              />
             </div>
 
             {/* Sources List */}
