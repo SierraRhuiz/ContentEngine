@@ -292,9 +292,12 @@ export default function ScoutPage() {
       }
 
       const data = await response.json();
+      console.log('[Scout] API response:', data);
+      console.log('[Scout] Raw tweets count:', data.tweets?.length || 0);
       
       // Filter out mock data from KaitoEasyAPI
       const filterMockData = (tweets: any[]) => {
+        console.log('[Scout] Filtering tweets:', tweets.length);
         return tweets.filter(tweet => {
           // Mock data indicators:
           // 1. Tweet IDs that are too short or follow mock patterns
@@ -330,7 +333,7 @@ export default function ScoutPage() {
                                tweet.text?.includes('platform, we have a minimum charge');
           
           if (isMockId || isMockText || isMockEngagement || isApiMessage) {
-            console.log('[Scout] Filtered mock tweet:', tweet.id || 'no-id');
+            console.log('[Scout] Filtered mock tweet:', tweet.id || 'no-id', 'text:', tweet.text?.substring(0, 50));
             return false;
           }
           
@@ -339,6 +342,7 @@ export default function ScoutPage() {
       };
       
       const realTweets = data.tweets ? filterMockData(data.tweets) : [];
+      console.log('[Scout] Real tweets after filter:', realTweets.length);
       
       if (realTweets.length > 0) {
         // Transform tweets to source format
