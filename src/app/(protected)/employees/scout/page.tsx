@@ -5,18 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Radio, 
   Search,
-  Filter,
   Settings,
   FileText,
   AlertCircle,
   Plus,
   Trash2,
   Play,
-  Pause,
   RefreshCw,
   Youtube,
   Twitter,
@@ -166,25 +163,49 @@ export default function ScoutPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-card border border-border/50">
-            <TabsTrigger value="sources" className="gap-2">
-              <FileText className="w-4 h-4" />
-              Discovered Sources
-              <Badge variant="secondary" className="ml-1">{mockSources.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="config" className="gap-2">
-              <Settings className="w-4 h-4" />
-              Configuration
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="gap-2">
-              <AlertCircle className="w-4 h-4" />
-              Logs
-            </TabsTrigger>
-          </TabsList>
+        {/* Custom Tabs Navigation */}
+        <div className="flex gap-1 mb-6 bg-card border border-border/50 rounded-lg p-1 w-fit">
+          <button
+            onClick={() => setActiveTab('sources')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'sources'
+                ? 'bg-sidebar-accent text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Discovered Sources
+            <Badge variant="secondary" className="ml-1">{mockSources.length}</Badge>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'config'
+                ? 'bg-sidebar-accent text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            Configuration
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'logs'
+                ? 'bg-sidebar-accent text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <AlertCircle className="w-4 h-4" />
+            Logs
+          </button>
+        </div>
 
-          {/* Sources Tab */}
-          <TabsContent value="sources" className="space-y-4">
+        {/* Sources Tab Content */}
+        {activeTab === 'sources' && (
+          <div className="space-y-4">
             {/* Filters */}
             <div className="flex gap-3">
               <div className="relative flex-1">
@@ -282,10 +303,12 @@ export default function ScoutPage() {
                 </Card>
               ))}
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          {/* Configuration Tab */}
-          <TabsContent value="config" className="space-y-6">
+        {/* Config Tab Content */}
+        {activeTab === 'config' && (
+          <div className="space-y-6">
             {/* Minimum Score Setting */}
             <Card className="border-border/50 bg-card">
               <CardHeader>
@@ -400,10 +423,10 @@ export default function ScoutPage() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          
 
           {/* Logs Tab */}
-          <TabsContent value="logs">
+          <div>
             <Card className="border-border/50 bg-card">
               <CardContent className="p-4">
                 <div className="space-y-3">
@@ -426,8 +449,8 @@ export default function ScoutPage() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );
