@@ -149,7 +149,10 @@ export default function MissionControlPage() {
               return (
                 <Card 
                   key={employee.id}
-                  className="border-border/50 bg-card hover:border-border transition-colors"
+                  className="border-border/50 bg-card hover:border-border transition-colors cursor-pointer"
+                  onClick={() => {
+                    if (employee.id === 1) window.location.href = '/employees/scout';
+                  }}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
