@@ -113,6 +113,14 @@ export default function ScoutPage() {
     setTargets(targets.map(t => t.id === id ? { ...t, active: !t.active } : t));
   };
 
+  const [monitoredSources, setMonitoredSources] = useState<number[]>([]);
+
+  const addToMonitoring = (sourceId: number) => {
+    if (!monitoredSources.includes(sourceId)) {
+      setMonitoredSources([...monitoredSources, sourceId]);
+    }
+  };
+
   const runScan = () => {
     setIsScanning(true);
     setTimeout(() => setIsScanning(false), 3000);
@@ -127,7 +135,7 @@ export default function ScoutPage() {
             <Radio className="w-6 h-6 text-blue-500" />
           </div>
           <div>
-            <p className="text-muted-foreground text-xs">EMPLOYEE #1</p>
+            <p className="text-muted-foreground text-xs">AGENT #1</p>
             <h1 className="text-xl font-semibold text-foreground">Scout</h1>
             <p className="text-sm text-muted-foreground">
               Discovers and scores trending content across platforms
@@ -255,18 +263,15 @@ export default function ScoutPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <Badge className={source.score >= 9 
-                            ? 'bg-green-500/10 text-green-500' 
-                            : source.score >= 8 
-                              ? 'bg-blue-500/10 text-blue-500' 
-                              : 'bg-yellow-500/10 text-yellow-500'
-                          }>
-                            Score {source.score}/10
-                          </Badge>
-                        </div>
-                        
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => addToMonitoring(source.id)}
+                          disabled={monitoredSources.includes(source.id)}
+                        >
+                          {monitoredSources.includes(source.id) ? 'Added' : 'Add'}
+                        </Button>
                         <Button size="sm">
                           <Play className="w-4 h-4 mr-2" />
                           Generate Pack

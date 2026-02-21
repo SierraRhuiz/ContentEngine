@@ -25,17 +25,17 @@ const workforce = [
   {
     id: 1,
     name: 'Scout',
-    role: 'EMPLOYEE #1',
+    role: 'AGENT #1',
     icon: Radio,
     accent: 'cyan',
-    description: 'Scrapes Twitter \u0026 YouTube. Tracks velocity, engagement, virality signals.',
+    description: 'Scrapes Twitter \and YouTube. Tracks velocity, engagement, virality signals.',
     metric: '21 sources',
     status: 'Active',
   },
   {
     id: 2,
     name: 'Strategist',
-    role: 'EMPLOYEE #2',
+    role: 'AGENT #2',
     icon: Brain,
     accent: 'purple',
     description: 'Develops your angle. Converts ideas into threads in your exact voice.',
@@ -45,7 +45,7 @@ const workforce = [
   {
     id: 3,
     name: 'Repurposer',
-    role: 'EMPLOYEE #3',
+    role: 'AGENT #3',
     icon: Layers,
     accent: 'orange',
     description: 'Expands threads into YT scripts, IG scripts, and tweet variations.',
@@ -55,7 +55,7 @@ const workforce = [
   {
     id: 4,
     name: 'Humanizer',
-    role: 'EMPLOYEE #4',
+    role: 'AGENT #4',
     icon: Sparkles,
     accent: 'green',
     description: 'Removes robotic phrasing. Improves clarity and natural flow.',
@@ -65,7 +65,7 @@ const workforce = [
   {
     id: 5,
     name: 'Viral Optimizer',
-    role: 'EMPLOYEE #5',
+    role: 'AGENT #5',
     icon: Target,
     accent: 'pink',
     description: 'Reviews for virality. Matches tone. Strengthens hooks. Delivers to dashboard.',

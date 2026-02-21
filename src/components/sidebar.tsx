@@ -5,20 +5,32 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Radio, Brain, Layers, Sparkles, Target } from "lucide-react";
+import { 
+  Radio, 
+  LayoutDashboard, 
+  Bot, 
+  Newspaper, 
+  ListTodo, 
+  Brain, 
+  Link2, 
+  Calendar, 
+  FileText, 
+  Settings,
+  Plus
+} from "lucide-react";
 
 const contentLinks = [
-  { href: "/", label: "Dashboard", icon: "🎯" },
-  { href: "/agent", label: "Agent", icon: "🤖" },
-  { href: "/feed", label: "Feed", icon: "📰" },
-  { href: "/queue", label: "Queue", icon: "📋" },
-  { href: "/brain", label: "Brain", icon: "🧠" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/agent", label: "Agent", icon: Bot },
+  { href: "/feed", label: "Feed", icon: Newspaper },
+  { href: "/queue", label: "Queue", icon: ListTodo },
+  { href: "/brain", label: "Brain", icon: Brain },
 ];
 
 const configLinks = [
-  { href: "/connections", label: "Connections", icon: "🔗" },
-  { href: "/schedules", label: "Schedules", icon: "📅" },
-  { href: "/instructions", label: "Custom Instructions", icon: "📝" },
+  { href: "/connections", label: "Connections", icon: Link2 },
+  { href: "/schedules", label: "Schedules", icon: Calendar },
+  { href: "/instructions", label: "Custom Instructions", icon: FileText },
 ];
 
 export function Sidebar() {
@@ -40,7 +52,7 @@ export function Sidebar() {
       {/* Create Post Button */}
       <div className="px-4 pb-4">
         <Button className="w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-          <span className="mr-2">+</span> Create a post
+          <Plus className="w-4 h-4 mr-2" /> Create a post
         </Button>
       </div>
 
@@ -53,21 +65,24 @@ export function Sidebar() {
             Content
           </p>
           <nav className="space-y-1">
-            {contentLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  pathname === link.href
-                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"
-                    : "text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-200"
-                )}
-              >
-                <span className="text-base">{link.icon}</span>
-                <span>{link.label}</span>
-              </Link>
-            ))}
+            {contentLinks.map((link) => {
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    pathname === link.href
+                      ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"
+                      : "text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-200"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="my-5 mx-1 h-px bg-cyan-500/10" />
@@ -77,21 +92,24 @@ export function Sidebar() {
             Configuration
           </p>
           <nav className="space-y-1">
-            {configLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  pathname === link.href
-                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"
-                    : "text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-200"
-                )}
-              >
-                <span className="text-base">{link.icon}</span>
-                <span>{link.label}</span>
-              </Link>
-            ))}
+            {configLinks.map((link) => {
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    pathname === link.href
+                      ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"
+                      : "text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-200"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
           </nav>
         </div>
       </ScrollArea>
@@ -109,7 +127,7 @@ export function Sidebar() {
               : "text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-200"
           )}
         >
-          <span className="text-base">⚙️</span>
+          <Settings className="w-4 h-4" />
           <span>Settings</span>
         </Link>
       </div>
