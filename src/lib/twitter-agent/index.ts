@@ -79,7 +79,10 @@ export async function processTwitterContent(
  * Analyze actual content instead of returning templates
  */
 function analyzeActualContent(request: ContentRequest): ContentAnalysis {
-  const content = request.extracted_topic || request.raw_input;
+  // Use the raw input directly so we analyze what the user actually typed
+  const content = request.raw_input;
+  console.log('[TwitterAgent] Analyzing content:', content.substring(0, 100));
+  
   const contentLower = content.toLowerCase();
   
   // Analyze content structure
@@ -89,32 +92,46 @@ function analyzeActualContent(request: ContentRequest): ContentAnalysis {
   const hasExclamation = content.includes('!');
   const hasEmojis = /[\u{1F600}-\u{1F64F}]/u.test(content);
   
-  // Determine content category
-  let category = 'general';
-  if (contentLower.includes('automation') || contentLower.includes('workflow')) category = 'automation';
-  else if (contentLower.includes('ai') || contentLower.includes('machine learning')) category = 'ai';
-  else if (contentLower.includes('startup') || contentLower.includes('founder')) category = 'startup';
-  else if (contentLower.includes('marketing') || contentLower.includes('growth')) category = 'marketing';
-  else if (contentLower.includes('code') || contentLower.includes('developer')) category = 'tech';
+  console.log('[TwitterAgent] Word count:', wordCount, 'Has numbers:', hasNumbers, 'Has question:', hasQuestion);
   
-  // Analyze hook quality
+  // Determine content category based on actual content
+  let category = 'general';
+  if (contentLower.includes('automation') || contentLower.includes('workflow') || contentLower.includes('openclaw')) category = 'automation';
+  else if (contentLower.includes('ai') || contentLower.includes('machine learning') || contentLower.includes('artificial intelligence')) category = 'ai';
+  else if (contentLower.includes('startup') || contentLower.includes('founder') || contentLower.includes('entrepreneur')) category = 'startup';
+  else if (contentLower.includes('marketing') || contentLower.includes('growth') || contentLower.includes('seo')) category = 'marketing';
+  else if (contentLower.includes('code') || contentLower.includes('developer') || contentLower.includes('programming')) category = 'tech';
+  
+  console.log('[TwitterAgent] Category:', category);
+  
+  // Extract the actual first sentence for hook analysis
   const firstSentence = content.split(/[.!?]/)[0] || '';
   const hookStrength = analyzeHook(firstSentence);
   
-  // Extract key themes
-  const themes = extractThemes(content);
-  
-  // Performance predictions
+  // Performance predictions based on actual content
   const performance = predictPerformance(content, category);
   
-  // Generate specific insights based on content
-  const insights = generateContentInsights(content, category, hookStrength, performance);
+  // Generate specific insights based on ACTUAL content
+  const insights = [
+    `Content length: ${content.length} characters (${content.length > 280 ? 'Thread candidate' : 'Single tweet'})`,
+    `Hook analysis: ${hookStrength.strength} - ${hookStrength.reason}`,
+    `Predicted engagement: ${performance.engagement} - ${performance.reason}`,
+  ];
   
-  // Main points to cover (based on what's missing or could be improved)
-  const mainPoints = generateMainPoints(content, category, request.input_type);
+  // Main points to cover based on what's actually in the content
+  const mainPoints = [
+    `Current opening: "${firstSentence.substring(0, 50)}${firstSentence.length > 50 ? '...' : ''}"`,
+    `Word count: ${wordCount} words`,
+    hasNumbers ? '✓ Contains specific numbers/stats' : '⚠ No specific numbers - adding stats could help',
+    hasQuestion ? '✓ Includes question to drive engagement' : '⚠ No question - consider adding one',
+  ];
   
-  // Content gaps
-  const gaps = identifyGaps(content, category);
+  // Content gaps specific to this content
+  const gaps: string[] = [];
+  if (!hasNumbers) gaps.push('Add specific numbers or statistics for credibility');
+  if (!hasQuestion) gaps.push('Include a question to increase replies');
+  if (content.length < 100) gaps.push('Content is short - could expand with more value');
+  if (!content.includes('@') && !content.includes('#')) gaps.push('Consider adding relevant mentions or hashtags');
   
   const hashtags: Record<string, string[]> = {
     'automation': ['#Automation', '#OpenClaw', '#Workflow'],
@@ -125,7 +142,7 @@ function analyzeActualContent(request: ContentRequest): ContentAnalysis {
     'general': ['#Tech', '#Business', '#Tips'],
   };
   
-  const audienceTags = hashtags[category] || hashtags['general'];
+  console.log('[TwitterAgent] Analysis complete');
   
   return {
     source_type: request.input_type,
@@ -136,11 +153,11 @@ function analyzeActualContent(request: ContentRequest): ContentAnalysis {
     statistics: extractStats(content),
     main_points: mainPoints,
     recommended_angle: determineAngle(request.intent, hookStrength, category),
-    content_gaps: gaps,
-    trending_hashtags: audienceTags.slice(0, 3),
+    content_gaps: gaps.length > 0 ? gaps : ['No major gaps identified'],
+    trending_hashtags: hashtags[category]?.slice(0, 3) || hashtags['general'].slice(0, 3),
     optimal_timing: 'Tuesday-Thursday, 9-11 AM EST',
     related_accounts: getRelatedAccounts(category),
-    conversation_context: `Active discussion on ${category}`,
+    conversation_context: `Analysis of ${category} content`,
   };
 }
 

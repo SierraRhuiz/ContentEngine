@@ -64,22 +64,22 @@ const recipes = {
     {
       title: "Analyze a link",
       icon: "🔗",
-      prompt: "Post this: https://example.com/article",
+      prompt: "Analyze this: https://example.com/article",
     },
     {
-      title: "Tweet about a topic",
+      title: "Analyze a tweet topic",
       icon: "💬",
-      prompt: "Tweet about automation mistakes founders make",
+      prompt: "Analyze: Tweet about automation mistakes founders make",
     },
     {
-      title: "Expand an idea",
+      title: "Analyze an idea",
       icon: "💡",
-      prompt: "Idea: The paradox of trying to automate everything",
+      prompt: "Analyze: Idea - The paradox of trying to automate everything",
     },
     {
-      title: "Improve my draft",
+      title: "Analyze my draft",
       icon: "✏️",
-      prompt: "Here's my draft: We help businesses grow faster with automation",
+      prompt: "Analyze this draft: We help businesses grow faster with automation",
     },
   ],
 };
@@ -105,22 +105,21 @@ export default function AgentPage() {
 
   const formatTwitterAnalysis = (data: any): string => {
     const { input, analysis } = data;
-    return `📊 **Content Analysis**
+    return `📊 ANALYSIS: "${analysis.source_title}"
 
+**Input Type:** ${input.input_type}
 **Category:** ${analysis.source_type}
-**Topic:** ${input.extracted_topic || input.raw_input.slice(0, 50)}
 
-**Performance Predictions:**
+**Performance Analysis:**
 ${analysis.key_insights?.map((i: string) => `• ${i}`).join('\n')}
 
-**Content Structure:**
+**Content Breakdown:**
 ${analysis.main_points?.map((p: string) => `• ${p}`).join('\n')}
 
-**Gaps to Fix:**
+**Issues to Fix:**
 ${analysis.content_gaps?.map((g: string) => `• ${g}`).join('\n')}
 
-**Recommended Angle:** ${analysis.recommended_angle?.replace(/_/g, ' ')}
-**Hashtags:** ${analysis.trending_hashtags?.join(' ')}
+**Suggested Hashtags:** ${analysis.trending_hashtags?.join(' ')}
 **Best Time:** ${analysis.optimal_timing || 'Peak hours'}`;
   };
 
