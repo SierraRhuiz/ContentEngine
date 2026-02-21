@@ -423,9 +423,11 @@ export default function ScoutPage() {
                 </div>
               </CardContent>
             </Card>
-          
+          </div>
+        )}
 
-          {/* Logs Tab */}
+        {/* Logs Tab Content */}
+        {activeTab === 'logs' && (
           <div>
             <Card className="border-border/50 bg-card">
               <CardContent className="p-4">
