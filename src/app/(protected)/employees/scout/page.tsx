@@ -89,14 +89,6 @@ function CustomDropdown({ value, options, onChange, placeholder = 'Select...', c
   );
 }
 
-import { 
-  Clock,
-  Hash,
-  User,
-  ChevronDown,
-  Check
-} from 'lucide-react';
-
 // Mock discovered sources
 const mockSources = [
   {
