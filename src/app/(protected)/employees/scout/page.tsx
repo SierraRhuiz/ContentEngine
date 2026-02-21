@@ -368,9 +368,12 @@ export default function ScoutPage() {
         setTrackedTweets(prev => [...newSources, ...prev]);
         
         return true; // Success
+      } else {
+        // No real tweets found after filtering
+        console.log('[Scout] No real tweets found for:', cleanUsername);
+        alert(`No real tweets found for @${cleanUsername}.\n\nPossible reasons:\n• Account has no recent public tweets\n• Account is private or suspended\n• Twitter/X is blocking the request`);
+        return false;
       }
-      
-      return false; // No tweets found
     } catch (error) {
       console.error('Tracking error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
