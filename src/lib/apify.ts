@@ -2,14 +2,14 @@
  * Apify Integration for Content Engine
  *
  * Actors:
- * - Twitter: kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest
+ * - Twitter: apidojo/twitter-scraper (reliable, no mock data)
  * - YouTube: topaz_sharingan/youtube-transcript-scraper
  * - LinkedIn: curious_coder/linkedin-post-search-scraper
  *
  * Docs: https://docs.apify.com/
  * 
  * Pricing:
- * - Twitter: $0.25 per 1,000 tweets (~60 tweets/second)
+ * - Twitter: $5/1000 tweets (more reliable than cheap options)
  * - LinkedIn: $30/month + usage
  * - YouTube: $20/month + usage
  */
@@ -25,7 +25,7 @@ if (!APIFY_API_KEY) {
 
 // Actor IDs (using ~ instead of / for API compatibility)
 const ACTORS = {
-  twitter_tweet: 'kaitoeasyapi~twitter-x-data-tweet-scraper-pay-per-result-cheapest',
+  twitter_tweet: 'apidojo~twitter-scraper',  // Changed from kaitoeasyapi - no mock data
   youtube_transcript: 'topaz_sharingan~youtube-transcript-scraper',
   linkedin_post: 'curious_coder~linkedin-post-search-scraper',
 };
