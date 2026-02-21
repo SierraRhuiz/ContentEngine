@@ -105,24 +105,23 @@ export default function AgentPage() {
 
   const formatTwitterAnalysis = (data: any): string => {
     const { input, analysis } = data;
-    return `📊 **Twitter Analysis Complete**
+    return `📊 **Content Analysis**
 
-**Input Type:** ${input.input_type}
-**Intent:** ${input.intent}
-**Target Audience:** ${input.target_audience}
+**Category:** ${analysis.source_type}
+**Topic:** ${input.extracted_topic || input.raw_input.slice(0, 50)}
 
-**Recommended Angle:** ${analysis.recommended_angle?.replace(/_/g, ' ')}
-
-💡 **Key Insights:**
+**Performance Predictions:**
 ${analysis.key_insights?.map((i: string) => `• ${i}`).join('\n')}
 
-📝 **Main Points to Cover:**
+**Content Structure:**
 ${analysis.main_points?.map((p: string) => `• ${p}`).join('\n')}
 
-🏷️ **Suggested Hashtags:** ${analysis.trending_hashtags?.join(' ')}
-⏰ **Best Time:** ${analysis.optimal_timing || 'Peak hours'}
+**Gaps to Fix:**
+${analysis.content_gaps?.map((g: string) => `• ${g}`).join('\n')}
 
-✅ Ready for Create Module (next: generate actual tweet)`;
+**Recommended Angle:** ${analysis.recommended_angle?.replace(/_/g, ' ')}
+**Hashtags:** ${analysis.trending_hashtags?.join(' ')}
+**Best Time:** ${analysis.optimal_timing || 'Peak hours'}`;
   };
 
   const handleSend = async () => {
