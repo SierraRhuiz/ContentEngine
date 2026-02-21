@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,79 @@ import {
   TrendingUp,
   Clock,
   Hash,
-  User
+  User,
+  ChevronDown,
+  Check
+} from 'lucide-react';
+
+// Custom Dropdown Component
+interface DropdownOption {
+  value: string;
+  label: string;
+}
+
+interface CustomDropdownProps {
+  value: string;
+  options: DropdownOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+function CustomDropdown({ value, options, onChange, placeholder = 'Select...', className = '' }: CustomDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const selectedOption = options.find(opt => opt.value === value);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={dropdownRef} className={`relative ${className}`}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between gap-2 bg-slate-900/80 border border-cyan-500/30 text-cyan-100 text-sm rounded-lg px-4 py-2.5 hover:border-cyan-500/50 hover:bg-slate-800/80 transition-all focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30"
+      >
+        <span>{selectedOption?.label || placeholder}</span>
+        <ChevronDown className={`w-4 h-4 text-cyan-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-cyan-500/30 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.15)] overflow-hidden z-50">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-sm text-left transition-colors ${
+                value === option.value 
+                  ? 'bg-cyan-500/20 text-cyan-300' 
+                  : 'text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-200'
+              }`}
+            >
+              <span>{option.label}</span>
+              {value === option.value && <Check className="w-4 h-4 text-cyan-400" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+  Clock,
+  Hash,
+  User,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 
 // Mock discovered sources
