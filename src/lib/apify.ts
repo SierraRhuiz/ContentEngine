@@ -23,11 +23,11 @@ if (!APIFY_API_KEY) {
   console.warn('[Apify] Warning: No API key found. Set APIFY_TOKEN in environment variables.');
 }
 
-// Actor IDs
+// Actor IDs (using ~ instead of / for API compatibility)
 const ACTORS = {
-  twitter_tweet: 'kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest',
-  youtube_transcript: 'topaz_sharingan/youtube-transcript-scraper',
-  linkedin_post: 'curious_coder/linkedin-post-search-scraper',
+  twitter_tweet: 'kaitoeasyapi~twitter-x-data-tweet-scraper-pay-per-result-cheapest',
+  youtube_transcript: 'topaz_sharingan~youtube-transcript-scraper',
+  linkedin_post: 'curious_coder~linkedin-post-search-scraper',
 };
 
 /**

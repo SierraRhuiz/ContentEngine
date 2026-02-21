@@ -165,6 +165,44 @@ export default function ScoutPage() {
     return matchesSearch && matchesScore;
   });
 
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [scrapeConfig, setScrapeConfig] = useState({
+    maxTweets: 10,
+    includeReplies: false,
+    includeRetweets: false,
+  });
+  const [pendingTarget, setPendingTarget] = useState<any>(null);
+
+  const handleAddClick = () => {
+    if (!newTarget.value.trim()) return;
+    
+    // If it's a Twitter account, show config modal
+    if (newTarget.type === 'account' && newTarget.platform === 'twitter') {
+      setPendingTarget({ ...newTarget });
+      setShowConfigModal(true);
+    } else {
+      // For other types, add directly
+      handleAddTarget();
+    }
+  };
+
+  const handleConfirmAdd = async () => {
+    if (!pendingTarget) return;
+    
+    // Add to targets list
+    const targetToAdd = { ...pendingTarget, id: Date.now(), active: true };
+    setTargets([...targets, targetToAdd]);
+    setNewTarget({ type: 'account', platform: 'twitter', value: '' });
+    
+    // Track with config
+    await trackAccount(pendingTarget.value, scrapeConfig);
+    
+    // Close modal and reset
+    setShowConfigModal(false);
+    setPendingTarget(null);
+    setScrapeConfig({ maxTweets: 10, includeReplies: false, includeRetweets: false });
+  };
+
   const handleAddTarget = async () => {
     if (!newTarget.value.trim()) return;
     
@@ -192,7 +230,7 @@ export default function ScoutPage() {
   const [trackedTweets, setTrackedTweets] = useState<any[]>([]);
 
   // Fetch tweets from tracked accounts using Apify
-  const trackAccount = async (username: string) => {
+  const trackAccount = async (username: string, config: any = {}) => {
     try {
       setIsTracking(true);
       
@@ -207,9 +245,9 @@ export default function ScoutPage() {
           type: 'twitter',
           username: cleanUsername,
           options: { 
-            maxTweets: 10,
-            includeReplies: false,
-            filter: 'latest'
+            maxTweets: config.maxTweets || 10,
+            includeReplies: config.includeReplies || false,
+            includeRetweets: config.includeRetweets || false,
           }
         })
       });
@@ -552,7 +590,7 @@ export default function ScoutPage() {
                   />
                   
                   <Button 
-                    onClick={handleAddTarget}
+                    onClick={handleAddClick}
                     className="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -631,6 +669,99 @@ export default function ScoutPage() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Configuration Modal */}
+        {showConfigModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-slate-900 border border-cyan-500/30 rounded-xl p-6 w-full max-w-md shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Configure Scraping for @{pendingTarget?.value}
+              </h3>
+              
+              <div className="space-y-4">
+                {/* Max Tweets */}
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">
+                    Number of Tweets to Fetch
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={scrapeConfig.maxTweets}
+                    onChange={(e) => setScrapeConfig({ ...scrapeConfig, maxTweets: parseInt(e.target.value) || 10 })}
+                    className="w-full bg-slate-800 border border-cyan-500/30 text-cyan-100 rounded-lg px-4 py-2 focus:outline-none focus:border-cyan-500/60"
+                  />
+                </div>
+
+                {/* Include Replies Toggle */}
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-slate-400">
+                    Include Replies
+                  </label>
+                  <button
+                    onClick={() => setScrapeConfig({ ...scrapeConfig, includeReplies: !scrapeConfig.includeReplies })}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      scrapeConfig.includeReplies ? 'bg-cyan-500' : 'bg-slate-700'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
+                      scrapeConfig.includeReplies ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+
+                {/* Include Retweets Toggle */}
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-slate-400">
+                    Include Retweets
+                  </label>
+                  <button
+                    onClick={() => setScrapeConfig({ ...scrapeConfig, includeRetweets: !scrapeConfig.includeRetweets })}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      scrapeConfig.includeRetweets ? 'bg-cyan-500' : 'bg-slate-700'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
+                      scrapeConfig.includeRetweets ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowConfigModal(false);
+                    setPendingTarget(null);
+                  }}
+                  className="flex-1 border-slate-600 text-slate-400 hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmAdd}
+                  disabled={isTracking}
+                  className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white"
+                >
+                  {isTracking ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Scraping...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Start Scraping
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>
