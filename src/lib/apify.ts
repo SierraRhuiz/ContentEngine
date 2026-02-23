@@ -23,9 +23,11 @@ if (!APIFY_API_KEY) {
   console.warn('[Apify] Warning: No API key found. Set APIFY_TOKEN in environment variables.');
 }
 
-// Actor IDs (using ~ instead of / for API compatibility) - Cost-optimized for internal use
+// Actor IDs (using ~ instead of / for API compatibility)
+// Note: Actors require Apify credits. Get $5 free/month at https://console.apify.com/billing
 const ACTORS = {
-  twitter_tweet: 'kaitoeasyapi~twitter-x-data-tweet-scraper-pay-per-result-cheapest',  // $0.25/1000 tweets
+  // Using happitap - more reliable, $0.40/1000 tweets, has $5 free tier
+  twitter_tweet: 'happitap~twitter-tweet-scraper',
   youtube_transcript: 'topaz_sharingan~youtube-transcript-scraper',
   linkedin_post: 'curious_coder~linkedin-post-search-scraper',
 };
@@ -223,8 +225,10 @@ export interface TwitterPostOutput {
 
 /**
  * Scrape tweets from a Twitter account using Apify
- * Cost: $0.25 per 1,000 tweets
- * Rate: ~60 tweets/second
+ * Actor: happitap~twitter-tweet-scraper
+ * Pricing: $0.40/1000 tweets (has $5 free tier)
+ * 
+ * Input format: searchTerms (array of search queries) OR startUrls
  */
 export async function getTwitterPosts(
   input: TwitterPostInput
@@ -235,39 +239,47 @@ export async function getTwitterPosts(
   console.log(`[Apify Twitter] Fetching tweets for user: ${username || 'N/A'}`);
   console.log(`[Apify Twitter] Max items: ${input.maxItems || 100}`);
 
-  // Build the input - use twitterContent with from: syntax for user timeline
-  // This is more reliable than the 'from' parameter alone
+  // happitap actor input format
   const actorInput: Record<string, any> = {
     maxItems: input.maxItems || 100,
-    queryType: input.queryType || 'Latest',
+    sort: input.queryType || 'Latest',
+    includeReplies: input['filter:replies'] ?? false,
   };
 
-  // If we have specific tweet IDs, use those
+  // Build search query
+  let searchQuery = '';
+  
+  // If we have specific tweet IDs
   if (input.tweetIDs && input.tweetIDs.length > 0) {
-    actorInput.tweetIDs = input.tweetIDs;
+    searchQuery = input.tweetIDs.map(id => `conversation_id:${id}`).join(' OR ');
   } 
-  // If we have a twitterContent search query, use that
+  // If we have a search query
   else if (input.twitterContent) {
-    actorInput.twitterContent = input.twitterContent;
+    searchQuery = input.twitterContent;
   }
-  // If we have a username, use the 'from' parameter
+  // If we have a username, use startUrls for profile scraping (more reliable)
   else if (username) {
-    actorInput.from = username;
+    // Use startUrls for profile timeline - more reliable than search
+    actorInput.startUrls = [{ url: `https://x.com/${username}` }];
   }
 
-  // Add optional filters
-  if (input.lang) actorInput.lang = input.lang;
-  if (input['filter:blue_verified']) actorInput['filter:blue_verified'] = true;
-  if (input['filter:has_engagement']) actorInput['filter:has_engagement'] = true;
-  if (input['filter:media']) actorInput['filter:media'] = true;
-  if (input['filter:images']) actorInput['filter:images'] = true;
-  if (input['filter:videos']) actorInput['filter:videos'] = true;
-  if (input['filter:replies'] !== undefined) actorInput['filter:replies'] = input['filter:replies'];
-  if (input['include:nativeretweets']) actorInput['include:nativeretweets'] = true;
+  // Only set searchTerms if we have a searchQuery (and not using startUrls)
+  if (searchQuery && !actorInput.startUrls) {
+    actorInput.searchTerms = [searchQuery];
+    
+    // Add optional filters to search query
+    const filters: string[] = [];
+    if (!input['include:nativeretweets']) filters.push('-filter:retweets');
+    
+    if (filters.length > 0) {
+      actorInput.searchTerms[0] += ' ' + filters.join(' ');
+    }
+  }
 
   const result = await runActor(ACTORS.twitter_tweet, actorInput);
 
   const tweets = Array.isArray(result) ? result : (result ? [result] : []);
+  
   console.log(`[Apify Twitter] Retrieved ${tweets.length} tweets for ${username || 'query'}`);
   
   return tweets;

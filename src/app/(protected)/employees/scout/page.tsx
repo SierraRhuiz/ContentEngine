@@ -288,6 +288,14 @@ export default function ScoutPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', errorData);
+        
+        // Handle "no credits" error with helpful message
+        if (response.status === 402 || errorData.error?.includes('credits')) {
+          throw new Error(
+            'Apify credits required. Get $5 free at console.apify.com/billing'
+          );
+        }
+        
         throw new Error(errorData.error || 'Failed to fetch tweets');
       }
 
@@ -371,7 +379,19 @@ export default function ScoutPage() {
       } else {
         // No real tweets found after filtering
         console.log('[Scout] No real tweets found for:', cleanUsername);
-        alert(`No real tweets found for @${cleanUsername}.\n\nPossible reasons:\n• Account has no recent public tweets\n• Account is private or suspended\n• Twitter/X is blocking the request`);
+        
+        // Check if we got mock data that was filtered out
+        const receivedMockData = data.tweets?.some((t: any) => 
+          t.text?.includes('KaitoEasyAPI') || 
+          t.text?.includes('mock data') ||
+          t.text?.includes('infrastructure costs')
+        );
+        
+        if (receivedMockData) {
+          alert(`⚠️ Apify Credits Required\n\nYour Apify account needs credits to scrape real tweets.\n\nGet $5 FREE credits (good for ~12,500 tweets):\nhttps://console.apify.com/billing\n\nOnce added, restart the server and try again.`);
+        } else {
+          alert(`No real tweets found for @${cleanUsername}.\n\nPossible reasons:\n• Account has no recent public tweets\n• Account is private or suspended\n• Twitter/X is blocking the request`);
+        }
         return false;
       }
     } catch (error) {
