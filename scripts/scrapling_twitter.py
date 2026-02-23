@@ -36,9 +36,21 @@ def scrape_twitter_profile(username, max_tweets=10):
         # Use StealthyFetcher to bypass anti-bot protection
         fetcher = StealthyFetcher(headless=True)
         
-        # Fetch the profile
-        url = f"https://twitter.com/{username}"
-        page = fetcher.fetch(url)
+        # Fetch the profile (try both twitter.com and x.com)
+        urls = [f"https://x.com/{username}", f"https://twitter.com/{username}"]
+        page = None
+        last_error = None
+        
+        for url in urls:
+            try:
+                page = fetcher.fetch(url)
+                break
+            except Exception as e:
+                last_error = e
+                continue
+        
+        if not page:
+            raise last_error or Exception("Failed to fetch profile")
         
         tweets = []
         
