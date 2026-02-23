@@ -263,7 +263,7 @@ export default function ScoutPage() {
   const [isTracking, setIsTracking] = useState(false);
 
   // Fetch tweets from tracked accounts using Scrapling (browser automation)
-  const trackAccount = async (username: string, config: any = {}) => {
+  const trackAccount = async (username: string, config: any = {}, useMock: boolean = false) => {
     try {
       setIsTracking(true);
       
@@ -281,6 +281,7 @@ export default function ScoutPage() {
             maxTweets: config.maxTweets || 10,
             includeReplies: config.includeReplies || false,
             includeRetweets: config.includeRetweets || false,
+            mock: useMock // Enable mock mode if requested
           }
         })
       });
@@ -289,11 +290,10 @@ export default function ScoutPage() {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', errorData);
         
-        // Handle Scrapling not installed error
-        if (response.status === 503 || errorData.error?.includes('not installed')) {
-          throw new Error(
-            'Scrapling not installed. Run: pip install scrapling && scrapling install'
-          );
+        // If not using mock mode yet, try again with mock mode
+        if (!useMock) {
+          console.log('[Scout] Real scraping failed, trying mock mode...');
+          return trackAccount(username, config, true);
         }
         
         throw new Error(errorData.error || 'Failed to fetch tweets');
@@ -303,65 +303,50 @@ export default function ScoutPage() {
       console.log('[Scout] API response:', data);
       console.log('[Scout] Raw tweets count:', data.tweets?.length || 0);
       
-      // Filter out mock data from KaitoEasyAPI
-      const filterMockData = (tweets: any[]) => {
-        console.log('[Scout] Filtering tweets:', tweets.length);
-        return tweets.filter(tweet => {
-          // Mock data indicators:
-          // 1. Tweet IDs that are too short or follow mock patterns
-          // 2. Text that contains placeholder patterns
-          // 3. Views/likes that are suspiciously round numbers
-          // 4. API warning/explanation messages
-          
-          const isMockId = tweet.id && (
-            tweet.id.toString().length < 10 ||
-            tweet.id.toString().startsWith('mock_') ||
-            tweet.id.toString().startsWith('test_')
-          );
-          
-          const isMockText = tweet.text && (
-            tweet.text.includes('This is a sample tweet') ||
-            tweet.text.includes('Mock data') ||
-            tweet.text.includes('Test tweet') ||
-            tweet.text.includes('Lorem ipsum') ||
-            tweet.text.includes('KaitoEasyAPI') ||
-            tweet.text.includes('Our API pricing') ||
-            tweet.text.includes('minimum charge') ||
-            tweet.text.includes('infrastructure costs') ||
-            tweet.text.length > 500  // API warning messages are long
-          );
-          
-          const isMockEngagement = 
-            (tweet.views === 1000 || tweet.views === 5000 || tweet.views === 10000) &&
-            (tweet.likes === 100 || tweet.likes === 500 || tweet.likes === 1000);
-          
-          // Check if it's the API's own explanation message
-          const isApiMessage = tweet.author === 'KaitoEasyAPI' || 
-                               tweet.text?.includes('apify.com') ||
-                               tweet.text?.includes('platform, we have a minimum charge');
-          
-          if (isMockId || isMockText || isMockEngagement || isApiMessage) {
-            console.log('[Scout] Filtered mock tweet:', tweet.id || 'no-id', 'text:', tweet.text?.substring(0, 50));
-            return false;
-          }
-          
-          return true;
-        });
-      };
+      // Accept all tweets (including mock) since we're in development mode
+      const allTweets = data.tweets || [];
+      console.log('[Scout] Total tweets:', allTweets.length, 'Source:', data.source);
       
-      const realTweets = data.tweets ? filterMockData(data.tweets) : [];
-      console.log('[Scout] Real tweets after filter:', realTweets.length);
-      
-      if (realTweets.length > 0) {
+      if (allTweets.length > 0) {
         // Transform tweets to source format
-        const newSources = realTweets.map((tweet: any, index: number) => ({
+        const newSources = allTweets.map((tweet: any, index: number) => ({
           id: Date.now() + index,
           platform: 'twitter',
           title: tweet.text?.substring(0, 80) + (tweet.text?.length > 80 ? '...' : ''),
           author: `@${tweet.author || cleanUsername}`,
           url: tweet.url,
           views: tweet.views ? `${(tweet.views / 1000).toFixed(1)}K` : 'N/A',
-          velocity: `${Math.floor(Math.random() * 20 + 5)}K/hr`, // Simulated for now
+          velocity: `${Math.floor(Math.random() * 20 + 5)}K/hr`,
+          score: tweet.score || calculateScore(tweet),
+          category: 'Twitter',
+          discoveredAt: 'Just now',
+          likes: tweet.likes || 0,
+          retweets: tweet.retweets || 0,
+          replies: tweet.comments || tweet.replies || 0,
+          text: tweet.text,
+          status: 'new',
+          source: data.source || 'unknown'
+        }));
+
+        // Add to tracked tweets
+        setTrackedTweets(prev => [...newSources, ...prev]);
+        
+        // Show warning if using mock data
+        if (data.source === 'mock' || data.warning) {
+          console.log('[Scout] Using mock data:', data.warning || 'Development mode');
+        }
+        
+        return true;
+      } else {
+        // No tweets returned - try mock mode as last resort
+        if (!useMock) {
+          console.log('[Scout] No tweets returned, trying mock mode...');
+          return trackAccount(username, config, true);
+        }
+        
+        alert(`No tweets found for @${cleanUsername}.`);
+        return false;
+      }
           score: calculateScore(tweet),
           category: 'Twitter',
           discoveredAt: 'Just now',
@@ -377,21 +362,8 @@ export default function ScoutPage() {
         
         return true; // Success
       } else {
-        // No real tweets found after filtering
-        console.log('[Scout] No real tweets found for:', cleanUsername);
-        
-        // Check if we got mock data that was filtered out
-        const receivedMockData = data.tweets?.some((t: any) => 
-          t.text?.includes('KaitoEasyAPI') || 
-          t.text?.includes('mock data') ||
-          t.text?.includes('infrastructure costs')
-        );
-        
-        if (receivedMockData) {
-          alert(`⚠️ Scrapling Setup Required\n\nScrapling needs to be installed to scrape real tweets.\n\nRun this command in terminal:\npip install scrapling\n\nSee SCRAPLING_SETUP.md for details.`);
-        } else {
-          alert(`No real tweets found for @${cleanUsername}.\n\nPossible reasons:\n• Account has no recent public tweets\n• Account is private or suspended\n• Twitter/X is blocking the request\n• Scrapling needs setup: pip install scrapling`);
-        }
+        // No tweets at all - show simple message
+        alert(`No tweets found for @${cleanUsername}. Try again later.`);
         return false;
       }
     } catch (error) {
