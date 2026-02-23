@@ -13,7 +13,7 @@ def generate_mock_tweets(username, count=10):
     """Generate realistic mock tweets for development"""
     
     sample_tweets = [
-        "Just shipped a new feature! Excited to see how users respond. 🚀",
+        "Just shipped a new feature! Excited to see how users respond.",
         "The key to building great products is talking to your users every single day.",
         "Marketing without measurement is just guessing.",
         "Your biggest competitor isn't another company - it's indifference.",
@@ -34,13 +34,11 @@ def generate_mock_tweets(username, count=10):
     base_time = datetime.now()
     
     for i in range(min(count, len(sample_tweets))):
-        # Generate semi-random engagement numbers
         likes = random.randint(50, 2500)
         retweets = int(likes * random.uniform(0.1, 0.3))
         replies = int(likes * random.uniform(0.05, 0.15))
         views = likes * random.randint(50, 200)
         
-        # Calculate virality score (5-9)
         engagement_rate = (likes + retweets * 2) / max(views, 1) * 100
         if engagement_rate > 5:
             score = 9

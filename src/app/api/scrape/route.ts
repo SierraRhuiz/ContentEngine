@@ -13,7 +13,8 @@ async function scrapeTwitter(username: string, maxTweets: number, useMock: boole
   // If mock mode is enabled, return mock data immediately
   if (useMock) {
     console.log(`[Scrape API] Using mock data for @${username}`);
-    return getMockTweets(username, maxTweets);
+    const mockTweets = getMockTweets(username, maxTweets);
+    return { tweets: mockTweets, source: 'mock' };
   }
   
   // Try Scrapling first
