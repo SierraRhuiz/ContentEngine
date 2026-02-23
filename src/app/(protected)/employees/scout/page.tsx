@@ -262,7 +262,7 @@ export default function ScoutPage() {
   const [monitoredSources, setMonitoredSources] = useState<number[]>([]);
   const [isTracking, setIsTracking] = useState(false);
 
-  // Fetch tweets from tracked accounts using Apify
+  // Fetch tweets from tracked accounts using Scrapling (browser automation)
   const trackAccount = async (username: string, config: any = {}) => {
     try {
       setIsTracking(true);
@@ -270,7 +270,7 @@ export default function ScoutPage() {
       // Remove @ if present
       const cleanUsername = username.replace('@', '');
       
-      // Call Apify API via your existing endpoint
+      // Call Scrapling API endpoint
       const response = await fetch('/api/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -289,10 +289,10 @@ export default function ScoutPage() {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', errorData);
         
-        // Handle "no credits" error with helpful message
-        if (response.status === 402 || errorData.error?.includes('credits')) {
+        // Handle Scrapling not installed error
+        if (response.status === 503 || errorData.error?.includes('not installed')) {
           throw new Error(
-            'Apify credits required. Get $5 free at console.apify.com/billing'
+            'Scrapling not installed. Run: pip install scrapling && scrapling install'
           );
         }
         
@@ -388,9 +388,9 @@ export default function ScoutPage() {
         );
         
         if (receivedMockData) {
-          alert(`⚠️ Apify Credits Required\n\nYour Apify account needs credits to scrape real tweets.\n\nGet $5 FREE credits (good for ~12,500 tweets):\nhttps://console.apify.com/billing\n\nOnce added, restart the server and try again.`);
+          alert(`⚠️ Scrapling Setup Required\n\nScrapling needs to be installed to scrape real tweets.\n\nRun this command in terminal:\npip install scrapling\n\nSee SCRAPLING_SETUP.md for details.`);
         } else {
-          alert(`No real tweets found for @${cleanUsername}.\n\nPossible reasons:\n• Account has no recent public tweets\n• Account is private or suspended\n• Twitter/X is blocking the request`);
+          alert(`No real tweets found for @${cleanUsername}.\n\nPossible reasons:\n• Account has no recent public tweets\n• Account is private or suspended\n• Twitter/X is blocking the request\n• Scrapling needs setup: pip install scrapling`);
         }
         return false;
       }

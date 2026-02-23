@@ -61,22 +61,9 @@ export default function SettingsPage() {
         {/* API Keys */}
         <Card className="border-border/50 bg-card">
           <CardHeader>
-            <CardTitle className="text-foreground">API Keys</CardTitle>
+            <CardTitle className="text-foreground">Integrations</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div>
-              <label className="mb-1.5 block text-sm text-muted-foreground">
-                Apify Token
-              </label>
-              <Input
-                type="password"
-                placeholder="apify_api_..."
-                defaultValue="••••••••••••••"
-              />
-              <p className="mt-1.5 text-xs text-muted-foreground/70">
-                Used for scraping tweets from monitored accounts
-              </p>
-            </div>
             <div>
               <label className="mb-1.5 block text-sm text-muted-foreground">
                 AI Model Key (Kimi)
@@ -88,6 +75,17 @@ export default function SettingsPage() {
               />
               <p className="mt-1.5 text-xs text-muted-foreground/70">
                 Used for AI content generation
+              </p>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">
+                Twitter Scraper Status
+              </label>
+              <div className="rounded-md border border-border/50 bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                Using Scrapling (browser automation) - No API key required
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground/70">
+                Run: pip install scrapling && scrapling install
               </p>
             </div>
             <Button variant="outline" size="sm">

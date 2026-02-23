@@ -1,6 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrapeBlog } from '@/lib/hyperbrowser';
-import { getTwitterPosts, getLinkedInPosts, getYouTubeTranscript } from '@/lib/apify';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+
+const execAsync = promisify(exec);
+
+/**
+ * Scrapling-based Twitter scraper (embedded - no Apify)
+ * Uses browser automation to scrape Twitter directly
+ */
+async function scrapeWithScrapling(username: string, maxTweets: number): Promise<any[]> {
+  try {
+    console.log(`[Scrape API] Scraping @${username} with Scrapling`);
+    
+    const scriptPath = path.join(process.cwd(), 'scripts', 'scrapling_twitter.py');
+    const command = `python3 "${scriptPath}" "${username}" ${maxTweets}`;
+    
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 120000, // 2 minute timeout
+      env: { ...process.env, PYTHONUNBUFFERED: '1' }
+    });
+    
+    if (stderr) {
+      console.log(`[Scrapling] stderr: ${stderr}`);
+    }
+    
+    const result = JSON.parse(stdout);
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    
+    return Array.isArray(result) ? result : [];
+    
+  } catch (error: any) {
+    console.error(`[Scrapling] Error: ${error.message}`);
+    throw error;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,104 +55,66 @@ export async function POST(request: NextRequest) {
         const user = username || extractUsername(url);
         const maxTweets = options?.maxTweets || options?.limit || 100;
         
-        // Check if all results are mock data
-        const isMockData = (tweets: any[]) => {
-          if (tweets.length === 0) return true;
-          const firstText = tweets[0]?.text || '';
-          return firstText.includes('KaitoEasyAPI') || firstText.includes('mock data');
-        };
-        
-        let apifyTweets: any[] = [];
-        let useScrapling = false;
+        // Clean username for security
+        const cleanUsername = user.replace('@', '').trim();
+        if (!/^[a-zA-Z0-9_]{1,15}$/.test(cleanUsername)) {
+          return NextResponse.json({ error: 'Invalid username format' }, { status: 400 });
+        }
         
         try {
-          // Try Apify first
-          console.log(`[Scrape API] Trying Apify for @${user}`);
-          const tweets = await getTwitterPosts({
-            from: user,
-            maxItems: maxTweets,
-            queryType: 'Latest',
-            'filter:replies': options?.includeReplies ?? false,
-            'include:nativeretweets': options?.includeRetweets ?? false,
-          });
+          // Use Scrapling only (no Apify fallback)
+          const tweets = await scrapeWithScrapling(cleanUsername, maxTweets);
           
-          // Normalize Apify response
-          apifyTweets = tweets.map((tweet) => ({
-            id: tweet.id,
+          // Normalize to consistent format
+          const normalizedTweets = tweets.map((tweet: any) => ({
+            id: tweet.id || `scrapling_${cleanUsername}_${Math.random().toString(36).substr(2, 9)}`,
             content: tweet.text,
             text: tweet.text,
-            author: tweet.author?.userName || user,
-            authorName: tweet.author?.name || user,
-            authorAvatar: tweet.author?.profilePicture,
-            likes: tweet.likeCount || 0,
-            retweets: tweet.retweetCount || 0,
-            comments: tweet.replyCount || 0,
-            views: tweet.viewCount || 0,
-            quotes: tweet.quoteCount || 0,
-            bookmarks: tweet.bookmarkCount || 0,
-            timestamp: tweet.createdAt,
-            url: tweet.url,
-            isReply: tweet.isReply,
-            isRetweet: tweet.isRetweet,
-            isQuote: tweet.isQuote,
-            media: tweet.media,
-            source: 'apify'
+            author: tweet.author || cleanUsername,
+            authorName: tweet.author || cleanUsername,
+            authorAvatar: null,
+            likes: tweet.likes || 0,
+            retweets: tweet.retweets || 0,
+            comments: tweet.replies || 0,
+            views: tweet.views || 0,
+            quotes: 0,
+            bookmarks: 0,
+            timestamp: tweet.timestamp || new Date().toISOString(),
+            url: tweet.url || `https://twitter.com/${cleanUsername}`,
+            isReply: false,
+            isRetweet: false,
+            isQuote: false,
+            media: null,
+            source: 'scrapling'
           }));
           
-          // Check if Apify returned mock data
-          if (isMockData(apifyTweets)) {
-            console.log('[Scrape API] Apify returned mock data, trying Scrapling fallback...');
-            useScrapling = true;
-          }
+          console.log(`[Scrape API] Scrapling returned ${normalizedTweets.length} tweets`);
+          
+          return NextResponse.json({ 
+            tweets: normalizedTweets,
+            source: 'scrapling',
+            count: normalizedTweets.length
+          });
           
         } catch (error: any) {
-          console.log(`[Scrape API] Apify failed: ${error.message}, trying Scrapling fallback...`);
-          useScrapling = true;
-        }
-        
-        // If Apify failed or returned mock data, try Scrapling
-        if (useScrapling) {
-          try {
-            console.log(`[Scrape API] Trying Scrapling fallback for @${user}`);
-            
-            // Call Scrapling endpoint
-            const scraplingResponse = await fetch('http://localhost:3000/api/scrape/scrapling', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username: user, maxTweets })
-            });
-            
-            if (scraplingResponse.ok) {
-              const scraplingData = await scraplingResponse.json();
-              if (scraplingData.tweets && scraplingData.tweets.length > 0) {
-                console.log(`[Scrape API] Scrapling returned ${scraplingData.tweets.length} tweets`);
-                return NextResponse.json({ 
-                  tweets: scraplingData.tweets,
-                  source: 'scrapling'
-                });
-              }
-            }
-            
-            // Scrapling also failed
-            console.log('[Scrape API] Scrapling also returned no results');
-            
-          } catch (scraplingError: any) {
-            console.error(`[Scrape API] Scrapling failed: ${scraplingError.message}`);
+          console.error(`[Scrape API] Scrapling failed: ${error.message}`);
+          
+          // Check if it's a Scrapling not installed error
+          if (error.message?.includes('Scrapling not installed') || 
+              error.message?.includes('No module named')) {
+            return NextResponse.json({ 
+              error: 'Scrapling not installed',
+              install: 'pip install scrapling && scrapling install',
+              setup: 'See SCRAPLING_SETUP.md'
+            }, { status: 503 });
           }
           
-          // Both failed - return mock data warning with explanation
           return NextResponse.json({ 
-            tweets: apifyTweets, // Return the mock data from Apify with warning
-            source: 'apify',
-            warning: 'No credits available. Add credits at https://console.apify.com/billing or install Scrapling: pip install scrapling && scrapling install'
-          });
+            error: 'Failed to scrape tweets',
+            message: error.message,
+            note: 'Make sure Scrapling is installed: pip install scrapling'
+          }, { status: 500 });
         }
-        
-        // Apify succeeded with real data
-        return NextResponse.json({ 
-          tweets: apifyTweets,
-          source: 'apify'
-        });
       }
 
       case 'blog':
@@ -128,44 +128,22 @@ export async function POST(request: NextRequest) {
 
       case 'youtube': {
         if (!url) return NextResponse.json({ error: 'Missing URL' }, { status: 400 });
-        // Use Apify YouTube transcript scraper
-        const transcript = await getYouTubeTranscript(url);
+        // Note: YouTube scraping removed - no Apify
         return NextResponse.json({ 
-          youtube: {
-            ...transcript,
-            success: true,
-          }
-        });
+          error: 'YouTube scraping temporarily unavailable',
+          message: 'YouTube integration requires Apify or alternative setup'
+        }, { status: 503 });
       }
 
       case 'linkedin': {
-        const profileUrl = url || (username ? `https://www.linkedin.com/in/${username}` : null);
-        if (!profileUrl) {
+        if (!url && !username) {
           return NextResponse.json({ error: 'Missing URL or username' }, { status: 400 });
         }
-        
-        // Use Apify LinkedIn scraper
-        const posts = await getLinkedInPosts([profileUrl]);
-        
-        // Normalize response format
-        const normalizedPosts = posts.map((post) => ({
-          id: post.urn,
-          content: post.text,
-          author: post.authorFullName,
-          authorUsername: post.authorProfileId,
-          authorHeadline: post.authorHeadline,
-          authorUrl: post.authorProfileUrl,
-          url: post.url,
-          timestamp: post.postedAtISO,
-          timeSincePosted: post.timeSincePosted,
-          likes: post.reactions?.length || 0,
-          comments: post.comments?.length || 0,
-          isRepost: post.isRepost,
-          type: post.type,
-          images: post.images,
-        }));
-        
-        return NextResponse.json({ linkedin: normalizedPosts });
+        // Note: LinkedIn scraping removed - no Apify
+        return NextResponse.json({ 
+          error: 'LinkedIn scraping temporarily unavailable',
+          message: 'LinkedIn integration requires Apify or alternative setup'
+        }, { status: 503 });
       }
 
       default:
@@ -181,4 +159,12 @@ function extractUsername(input: string): string {
   if (!input) return '';
   const match = input.match(/(?:x\.com|twitter\.com)\/([^/?]+)/);
   return match ? match[1] : input.replace('@', '');
+}
+
+export async function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    twitter_scraper: 'Scrapling (browser automation)',
+    note: 'Apify integration removed - using Scrapling only'
+  });
 }

@@ -1,17 +1,11 @@
 /**
- * Apify Integration for Content Engine
- *
- * Actors:
- * - Twitter: apidojo/twitter-scraper (reliable, no mock data)
- * - YouTube: topaz_sharingan/youtube-transcript-scraper
- * - LinkedIn: curious_coder/linkedin-post-search-scraper
- *
- * Docs: https://docs.apify.com/
+ * Apify Integration - DEPRECATED FOR TWITTER
  * 
- * Pricing:
- * - Twitter: $5/1000 tweets (more reliable than cheap options)
- * - LinkedIn: $30/month + usage
- * - YouTube: $20/month + usage
+ * Twitter scraping has been moved to Scrapling (browser automation)
+ * See: scripts/scrapling_twitter.py and SCRAPLING_SETUP.md
+ * 
+ * This file now only contains LinkedIn and YouTube functions.
+ * To re-enable Apify for Twitter, restore from git history.
  */
 
 // Support both APIFY_TOKEN (documented) and APIFY_API_KEY (legacy)
@@ -23,11 +17,8 @@ if (!APIFY_API_KEY) {
   console.warn('[Apify] Warning: No API key found. Set APIFY_TOKEN in environment variables.');
 }
 
-// Actor IDs (using ~ instead of / for API compatibility)
-// Note: Actors require Apify credits. Get $5 free/month at https://console.apify.com/billing
+// Actor IDs
 const ACTORS = {
-  // Using happitap - more reliable, $0.40/1000 tweets, has $5 free tier
-  twitter_tweet: 'happitap~twitter-tweet-scraper',
   youtube_transcript: 'topaz_sharingan~youtube-transcript-scraper',
   linkedin_post: 'curious_coder~linkedin-post-search-scraper',
 };
@@ -44,7 +35,6 @@ async function runActor(
   }
 
   console.log(`[Apify] Starting actor: ${actorId}`);
-  console.log(`[Apify] Input:`, JSON.stringify(input, null, 2));
 
   const response = await fetch(
     `${APIFY_BASE_URL}/acts/${actorId}/runs`,
@@ -157,165 +147,10 @@ async function waitForRun(
   throw new Error('Actor run timed out');
 }
 
-// ============ TWITTER SCRAPER ============
-
-export interface TwitterPostInput {
-  from?: string; // Username to scrape from
-  maxItems?: number;
-  tweetIDs?: string[]; // Specific tweet IDs
-  twitterContent?: string; // Search query
-  queryType?: 'Latest' | 'Top';
-  lang?: string;
-  'filter:blue_verified'?: boolean;
-  'filter:has_engagement'?: boolean;
-  'filter:media'?: boolean;
-  'filter:images'?: boolean;
-  'filter:videos'?: boolean;
-  'filter:replies'?: boolean;
-  'include:nativeretweets'?: boolean;
-}
-
-export interface TwitterAuthor {
-  type: string;
-  userName: string;
-  url: string;
-  twitterUrl: string;
-  id: string;
-  name: string;
-  isVerified: boolean;
-  isBlueVerified: boolean;
-  profilePicture: string;
-  coverPicture?: string;
-  description?: string;
-  location?: string;
-  followers: number;
-  following: number;
-  createdAt: string;
-  statusesCount: number;
-  favouritesCount: number;
-  mediaCount: number;
-}
-
-export interface TwitterPostOutput {
-  type: string;
-  id: string;
-  url: string;
-  twitterUrl: string;
-  text: string;
-  source: string;
-  retweetCount: number;
-  replyCount: number;
-  likeCount: number;
-  quoteCount: number;
-  viewCount: number;
-  createdAt: string;
-  lang: string;
-  bookmarkCount: number;
-  isReply: boolean;
-  inReplyToId: string | null;
-  conversationId: string;
-  inReplyToUserId: string | null;
-  inReplyToUsername: string | null;
-  isPinned: boolean;
-  author: TwitterAuthor;
-  media?: any[];
-  isRetweet: boolean;
-  isQuote: boolean;
-}
-
-/**
- * Scrape tweets from a Twitter account using Apify
- * Actor: happitap~twitter-tweet-scraper
- * Pricing: $0.40/1000 tweets (has $5 free tier)
- * 
- * Input format: searchTerms (array of search queries) OR startUrls
- */
-export async function getTwitterPosts(
-  input: TwitterPostInput
-): Promise<TwitterPostOutput[]> {
-  // Clean username (remove @ if present)
-  const username = input.from?.replace('@', '').trim();
-  
-  console.log(`[Apify Twitter] Fetching tweets for user: ${username || 'N/A'}`);
-  console.log(`[Apify Twitter] Max items: ${input.maxItems || 100}`);
-
-  // happitap actor input format
-  const actorInput: Record<string, any> = {
-    maxItems: input.maxItems || 100,
-    sort: input.queryType || 'Latest',
-    includeReplies: input['filter:replies'] ?? false,
-  };
-
-  // Build search query
-  let searchQuery = '';
-  
-  // If we have specific tweet IDs
-  if (input.tweetIDs && input.tweetIDs.length > 0) {
-    searchQuery = input.tweetIDs.map(id => `conversation_id:${id}`).join(' OR ');
-  } 
-  // If we have a search query
-  else if (input.twitterContent) {
-    searchQuery = input.twitterContent;
-  }
-  // If we have a username, use startUrls for profile scraping (more reliable)
-  else if (username) {
-    // Use startUrls for profile timeline - more reliable than search
-    actorInput.startUrls = [{ url: `https://x.com/${username}` }];
-  }
-
-  // Only set searchTerms if we have a searchQuery (and not using startUrls)
-  if (searchQuery && !actorInput.startUrls) {
-    actorInput.searchTerms = [searchQuery];
-    
-    // Add optional filters to search query
-    const filters: string[] = [];
-    if (!input['include:nativeretweets']) filters.push('-filter:retweets');
-    
-    if (filters.length > 0) {
-      actorInput.searchTerms[0] += ' ' + filters.join(' ');
-    }
-  }
-
-  const result = await runActor(ACTORS.twitter_tweet, actorInput);
-
-  const tweets = Array.isArray(result) ? result : (result ? [result] : []);
-  
-  console.log(`[Apify Twitter] Retrieved ${tweets.length} tweets for ${username || 'query'}`);
-  
-  return tweets;
-}
-
-/**
- * Get tweets by specific IDs
- */
-export async function getTwitterPostsByIds(
-  tweetIds: string[]
-): Promise<TwitterPostOutput[]> {
-  return getTwitterPosts({
-    tweetIDs: tweetIds,
-    maxItems: tweetIds.length,
-  });
-}
-
-/**
- * Search tweets by content/keywords
- */
-export async function searchTwitterPosts(
-  query: string,
-  maxItems: number = 100,
-  queryType: 'Latest' | 'Top' = 'Latest'
-): Promise<TwitterPostOutput[]> {
-  return getTwitterPosts({
-    twitterContent: query,
-    maxItems,
-    queryType,
-  });
-}
-
 // ============ YOUTUBE TRANSCRIPT ============
 
 export interface YouTubeTranscriptInput {
-  startUrls: string[]; // Array of YouTube URLs
+  startUrls: string[];
 }
 
 export interface YouTubeTranscriptOutput {
@@ -341,40 +176,11 @@ export async function getYouTubeTranscript(
   return result;
 }
 
-/**
- * Extract transcripts from multiple YouTube videos
- */
-export async function getYouTubeTranscripts(
-  videoUrls: string[]
-): Promise<YouTubeTranscriptOutput[]> {
-  const result = await runActor(ACTORS.youtube_transcript, {
-    startUrls: videoUrls,
-  });
-
-  return Array.isArray(result) ? result : [result];
-}
-
-/**
- * Generate content from YouTube transcript
- */
-export async function generateFromTranscript(
-  transcript: string,
-  outputType: 'tweet-thread' | 'blog' | 'linkedin' | 'key-quotes',
-  voiceProfile?: string
-): Promise<string> {
-  // This would call Kimi to generate content
-  // Implemented in kimi.ts
-  return '';
-}
-
 // ============ LINKEDIN POST SCRAPER ============
 
 export interface LinkedInPostInput {
-  // LinkedIn post URN or URL
   startUrls: string[];
-  // Optional: search by keywords
   searchTerm?: string;
-  // Number of posts to scrape
   limit?: number;
 }
 
@@ -433,125 +239,10 @@ export async function searchLinkedInPosts(
   return Array.isArray(result) ? result : [result];
 }
 
-/**
- * Generate content inspired by LinkedIn posts
- */
-export async function generateFromLinkedIn(
-  posts: LinkedInPostOutput[],
-  platform: 'twitter' | 'blog' | 'linkedin',
-  voiceProfile?: string
-): Promise<string> {
-  // Extract post texts
-  const postTexts = posts.map((p) => p.text).join('\n\n---\n\n');
-
-  // This would call Kimi to generate content
-  return '';
-}
-
-// ============ CONTENT ENGINE INTEGRATION ============
-
-export interface ContentSource {
-  type: 'youtube' | 'twitter' | 'linkedin';
-  id: string;
-  name: string;
-  url: string;
-  lastScraped?: Date;
-}
-
-export interface ScrapedContent {
-  id: string;
-  type: 'youtube' | 'twitter' | 'linkedin';
-  text: string; // Transcript or post text
-  author: string;
-  url: string;
-  timestamp?: Date;
-  engagement?: {
-    likes: number;
-    comments: number;
-    shares: number;
-  };
-}
-
-/**
- * Unified content scraper
- */
-export async function scrapeContent(
-  sources: ContentSource[]
-): Promise<ScrapedContent[]> {
-  const results: ScrapedContent[] = [];
-
-  for (const source of sources) {
-    switch (source.type) {
-      case 'youtube': {
-        const transcript = await getYouTubeTranscript(source.url);
-        results.push({
-          id: transcript.url,
-          type: 'youtube',
-          text: transcript.transcript,
-          author: transcript.channelName,
-          url: transcript.url,
-          timestamp: new Date(),
-        });
-        break;
-      }
-
-      case 'linkedin': {
-        const posts = await getLinkedInPosts([source.url]);
-        for (const post of posts) {
-          results.push({
-            id: post.urn,
-            type: 'linkedin',
-            text: post.text,
-            author: post.authorFullName,
-            url: post.url,
-            timestamp: new Date(post.postedAtTimestamp),
-            engagement: {
-              likes: post.reactions.length,
-              comments: post.comments.length,
-              shares: post.isRepost ? 1 : 0,
-            },
-          });
-        }
-        break;
-      }
-
-      case 'twitter': {
-        // Use Apify Twitter scraper
-        const tweets = await getTwitterPosts({ from: source.name, maxItems: 50 });
-        for (const tweet of tweets) {
-          results.push({
-            id: tweet.id,
-            type: 'twitter',
-            text: tweet.text,
-            author: tweet.author.userName,
-            url: tweet.url,
-            timestamp: new Date(tweet.createdAt),
-            engagement: {
-              likes: tweet.likeCount,
-              comments: tweet.replyCount,
-              shares: tweet.retweetCount,
-            },
-          });
-        }
-        break;
-      }
-    }
-  }
-
-  return results;
-}
-
 export default {
-  // Twitter
-  getTwitterPosts,
-  getTwitterPostsByIds,
-  searchTwitterPosts,
   // YouTube
   getYouTubeTranscript,
-  getYouTubeTranscripts,
   // LinkedIn
   getLinkedInPosts,
   searchLinkedInPosts,
-  // Unified
-  scrapeContent,
 };

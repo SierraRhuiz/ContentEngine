@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
-import { getTwitterPosts } from '@/lib/apify';
 import { getLinkedInPosts } from '@/lib/apify';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+
+const execAsync = promisify(exec);
+
+/**
+ * Scrape Twitter using Scrapling (Python script)
+ */
+async function scrapeTwitterWithScrapling(username: string, maxTweets: number): Promise<any[]> {
+  const scriptPath = path.join(process.cwd(), 'scripts', 'scrapling_twitter.py');
+  const command = `python3 "${scriptPath}" "${username}" ${maxTweets}`;
+  
+  const { stdout } = await execAsync(command, {
+    timeout: 120000,
+    env: { ...process.env, PYTHONUNBUFFERED: '1' }
+  });
+  
+  const result = JSON.parse(stdout);
+  if (result.error) throw new Error(result.error);
+  return Array.isArray(result) ? result : [];
+}
 
 /**
  * POST /api/feed/historical
@@ -35,52 +56,29 @@ export async function POST(request: NextRequest) {
 
     // Fetch posts based on platform
     if (account.platform === 'twitter') {
-      const tweets = await getTwitterPosts({
-        from: account.username,
-        maxItems: limit,
-        queryType: 'Latest',
-        'filter:replies': false,
-      });
+      // Use Scrapling for Twitter scraping
+      const tweets = await scrapeTwitterWithScrapling(account.username, limit);
 
       posts = tweets.map((tweet) => ({
         account_id: accountId,
         platform: 'twitter',
-        external_id: tweet.id,
+        external_id: tweet.id || `scrapling_${Date.now()}_${Math.random()}`,
         content: tweet.text,
-        author_username: tweet.author?.userName || account.username,
-        author_name: tweet.author?.name || account.display_name,
-        url: tweet.url,
-        posted_at: tweet.createdAt,
+        author_username: tweet.author || account.username,
+        author_name: tweet.author || account.display_name,
+        url: tweet.url || `https://twitter.com/${account.username}`,
+        posted_at: tweet.timestamp || new Date().toISOString(),
         engagement: {
-          likes: tweet.likeCount || 0,
-          retweets: tweet.retweetCount || 0,
-          comments: tweet.replyCount || 0,
-          quotes: tweet.quoteCount || 0,
-          views: tweet.viewCount || 0,
-          bookmarks: tweet.bookmarkCount || 0,
+          likes: tweet.likes || 0,
+          retweets: tweet.retweets || 0,
+          comments: tweet.replies || 0,
+          views: tweet.views || 0,
         },
         metadata: {
-          isReply: tweet.isReply,
-          isRetweet: tweet.isRetweet,
-          isQuote: tweet.isQuote,
-          media: tweet.media,
-          lang: tweet.lang,
+          source: 'scrapling',
         },
         is_new: true,
       }));
-
-      // Update account with author info if available
-      if (tweets[0]?.author) {
-        await supabase
-          .from('monitored_accounts')
-          .update({
-            display_name: tweets[0].author.name,
-            avatar_url: tweets[0].author.profilePicture,
-            bio: tweets[0].author.description,
-            followers_count: tweets[0].author.followers,
-          })
-          .eq('id', accountId);
-      }
     } else if (account.platform === 'linkedin') {
       const profileUrl = account.profile_url || `https://www.linkedin.com/in/${account.username}`;
       const linkedInPosts = await getLinkedInPosts([profileUrl]);
