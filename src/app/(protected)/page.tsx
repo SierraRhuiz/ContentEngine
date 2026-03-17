@@ -202,7 +202,7 @@ export default function DashboardPage() {
           {/* Scout Feed */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-white">Scout Feed</h2>
+              <h2 className="text-base font-semibold text-white">Scout Feed (SYNC TEST)</h2>
               <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
                 21 sources tracked
               </Badge>
