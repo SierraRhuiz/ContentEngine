@@ -45,7 +45,7 @@ export function Sidebar() {
         </div>
         <div>
           <span className="text-lg font-semibold tracking-tight text-white">Content</span>
-          <span className="text-lg font-semibold tracking-tight text-cyan-400">EngineV1</span>
+          <span className="text-lg font-semibold tracking-tight text-cyan-400">Engine</span>
         </div>
       </div>
 
