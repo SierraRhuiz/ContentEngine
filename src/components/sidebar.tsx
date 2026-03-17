@@ -52,7 +52,7 @@ export function Sidebar() {
       {/* Create Post Button */}
       <div className="px-4 pb-4">
         <Button className="w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-          <Plus className="w-4 h-4 mr-2" /> New Post
+          <Plus className="w-4 h-4 mr-2" /> Create Post
         </Button>
       </div>
 
