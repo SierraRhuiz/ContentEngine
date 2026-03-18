@@ -1,1 +1,7 @@
-export { default } from './(protected)/page';
+'use client';
+
+import DashboardPage from './(protected)/page';
+
+export default function HomePage() {
+  return <DashboardPage />;
+}
