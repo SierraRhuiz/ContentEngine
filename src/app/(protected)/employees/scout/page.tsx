@@ -347,25 +347,6 @@ export default function ScoutPage() {
         alert(`No tweets found for @${cleanUsername}.`);
         return false;
       }
-          score: calculateScore(tweet),
-          category: 'Twitter',
-          discoveredAt: 'Just now',
-          likes: tweet.likes || 0,
-          retweets: tweet.retweets || 0,
-          replies: tweet.comments || 0,
-          text: tweet.text,
-          status: 'new',
-        }));
-
-        // Add to tracked tweets
-        setTrackedTweets(prev => [...newSources, ...prev]);
-        
-        return true; // Success
-      } else {
-        // No tweets at all - show simple message
-        alert(`No tweets found for @${cleanUsername}. Try again later.`);
-        return false;
-      }
     } catch (error) {
       console.error('Tracking error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
