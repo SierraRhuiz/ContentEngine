@@ -2,7 +2,7 @@
 # ContentEngine Auto-Sync Script
 # Watches for GitHub changes and auto-pulls
 
-REPO_DIR="$HOME/ContentEngine"  # Change this if your repo is elsewhere
+REPO_DIR="$HOME/.openclaw/workspace/contentengine"  # Correct code location
 LOG_FILE="$HOME/.contentengine-sync.log"
 
 cd "$REPO_DIR" || exit 1
